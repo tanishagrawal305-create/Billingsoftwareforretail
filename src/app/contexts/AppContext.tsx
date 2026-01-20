@@ -6,10 +6,11 @@ export interface Product {
   category: string;
   price: number;
   type: 'unit' | 'weight';
-  unit?: string; // for weight-based: kg, g, ml, ltr
-  quantity?: number; // for weight-based products, this is the weight value
+  unit?: string;
+  quantity?: number;
   stock: number;
   barcode?: string;
+  image?: string;
   createdAt: string;
 }
 
@@ -32,9 +33,10 @@ export interface Sale {
     total: number;
   }[];
   subtotal: number;
+  discount: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'paytm' | 'card';
+  paymentMethod: 'cash' | 'card' | 'upi';
   createdAt: string;
 }
 
@@ -42,12 +44,13 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  shopName: string;
 }
 
 interface AppContextType {
   user: User | null;
   login: (email: string, password: string) => boolean;
-  signup: (email: string, password: string, name: string) => boolean;
+  signup: (email: string, password: string, name: string, shopName: string) => boolean;
   logout: () => void;
   products: Product[];
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
@@ -73,7 +76,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
 
-  // Load data from localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     const savedProducts = localStorage.getItem('products');
@@ -82,11 +84,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     if (savedUser) setUser(JSON.parse(savedUser));
     if (savedProducts) setProducts(JSON.parse(savedProducts));
+    else {
+      // Add sample products
+      const sampleProducts: Product[] = [
+        { id: '1', name: 'Rice', category: 'Grocery', price: 45, type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', createdAt: new Date().toISOString() },
+        { id: '2', name: 'Wheat Flour', category: 'Grocery', price: 40, type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', createdAt: new Date().toISOString() },
+        { id: '3', name: 'Sugar', category: 'Grocery', price: 42, type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', createdAt: new Date().toISOString() },
+        { id: '4', name: 'Milk', category: 'Dairy', price: 60, type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', createdAt: new Date().toISOString() },
+        { id: '5', name: 'Bread', category: 'Bakery', price: 35, type: 'unit', stock: 40, barcode: '1005', createdAt: new Date().toISOString() },
+        { id: '6', name: 'Eggs', category: 'Dairy', price: 6, type: 'unit', stock: 200, barcode: '1006', createdAt: new Date().toISOString() },
+        { id: '7', name: 'Tea Powder', category: 'Beverage', price: 180, type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', createdAt: new Date().toISOString() },
+        { id: '8', name: 'Coffee', category: 'Beverage', price: 220, type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', createdAt: new Date().toISOString() },
+      ];
+      setProducts(sampleProducts);
+      localStorage.setItem('products', JSON.stringify(sampleProducts));
+    }
     if (savedSales) setSales(JSON.parse(savedSales));
     if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
   }, []);
 
-  // Save data to localStorage
   useEffect(() => {
     if (user) localStorage.setItem('user', JSON.stringify(user));
     else localStorage.removeItem('user');
@@ -108,13 +124,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const foundUser = users.find((u: any) => u.email === email && u.password === password);
     if (foundUser) {
-      setUser({ id: foundUser.id, email: foundUser.email, name: foundUser.name });
+      setUser({ id: foundUser.id, email: foundUser.email, name: foundUser.name, shopName: foundUser.shopName });
       return true;
     }
     return false;
   };
 
-  const signup = (email: string, password: string, name: string): boolean => {
+  const signup = (email: string, password: string, name: string, shopName: string): boolean => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const existingUser = users.find((u: any) => u.email === email);
     if (existingUser) return false;
@@ -124,10 +140,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       email,
       password,
       name,
+      shopName,
     };
     users.push(newUser);
     localStorage.setItem('users', JSON.stringify(users));
-    setUser({ id: newUser.id, email: newUser.email, name: newUser.name });
+    setUser({ id: newUser.id, email: newUser.email, name: newUser.name, shopName: newUser.shopName });
     return true;
   };
 
@@ -162,11 +179,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     setSales((prev) => [...prev, newSale]);
 
-    // Update product stock
     sale.items.forEach((item) => {
-      updateProduct(item.productId, {
-        stock: products.find((p) => p.id === item.productId)!.stock - item.quantity,
-      });
+      const product = products.find((p) => p.id === item.productId);
+      if (product) {
+        updateProduct(item.productId, {
+          stock: product.stock - item.quantity,
+        });
+      }
     });
   };
 
