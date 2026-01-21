@@ -17,7 +17,6 @@ export interface Product {
   id: string;
   name: string;
   category: string;
-  price: number;
   type: 'unit' | 'weight';
   unit?: 'kg' | 'g' | 'ltr' | 'ml';
   quantity?: number;
@@ -56,6 +55,9 @@ export interface Sale {
   total: number;
   paymentMethod: string;
   applyGst: boolean;
+  customerName?: string;
+  customerMobile?: string;
+  createdAt?: string;
 }
 
 interface AppContextType {
@@ -86,6 +88,7 @@ interface AppContextType {
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   completeSale: (sale: Omit<Sale, 'id' | 'date'>) => Promise<void>;
+  addSale: (sale: any) => Promise<void>;
   addCustomer: (customer: Omit<Customer, 'id'>) => Promise<Customer>;
   updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
 }
@@ -132,6 +135,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const loadData = () => {
       try {
+        // Clear old data if schema has changed (migration)
+        const migrationKey = 'jr_invoice_migration_v2';
+        const migrationDone = localStorage.getItem(migrationKey);
+        
+        if (!migrationDone) {
+          // Clear all data to start fresh with new schema
+          localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
+          localStorage.removeItem(STORAGE_KEYS.SALES);
+          localStorage.setItem(migrationKey, 'done');
+          console.log('Data migration completed - old product data cleared');
+        }
+        
         // Load current user
         const currentUserStr = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
         if (currentUserStr) {
@@ -183,7 +198,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       // Remove current user's products and add new ones
       const otherProducts = allProducts.filter((p: any) => p.userId !== user?.id);
-      const updatedProducts = [...otherProducts, ...newProducts];
+      const updatedProducts = [...otherProducts, ...newProducts.map(p => ({ ...p, userId: user?.id }))];
       
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
       setProducts(newProducts);
@@ -264,14 +279,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Create sample products for new user
       const sampleProducts: Product[] = [
-        { id: `${newUser.id}-1`, name: 'Rice', category: 'Grocery', price: 45, type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', gstRate: 5 },
-        { id: `${newUser.id}-2`, name: 'Wheat Flour', category: 'Grocery', price: 40, type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', gstRate: 5 },
-        { id: `${newUser.id}-3`, name: 'Sugar', category: 'Grocery', price: 42, type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', gstRate: 5 },
-        { id: `${newUser.id}-4`, name: 'Milk', category: 'Dairy', price: 60, type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', gstRate: 5 },
-        { id: `${newUser.id}-5`, name: 'Bread', category: 'Bakery', price: 35, type: 'unit', stock: 40, barcode: '1005', gstRate: 5 },
-        { id: `${newUser.id}-6`, name: 'Eggs', category: 'Dairy', price: 6, type: 'unit', stock: 200, barcode: '1006', gstRate: 5 },
-        { id: `${newUser.id}-7`, name: 'Tea Powder', category: 'Beverage', price: 180, type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', gstRate: 5 },
-        { id: `${newUser.id}-8`, name: 'Coffee', category: 'Beverage', price: 220, type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', gstRate: 5 },
+        { id: `${newUser.id}-1`, name: 'Rice', category: 'Grocery', type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', gstRate: 5 },
+        { id: `${newUser.id}-2`, name: 'Wheat Flour', category: 'Grocery', type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', gstRate: 5 },
+        { id: `${newUser.id}-3`, name: 'Sugar', category: 'Grocery', type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', gstRate: 5 },
+        { id: `${newUser.id}-4`, name: 'Milk', category: 'Dairy', type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', gstRate: 5 },
+        { id: `${newUser.id}-5`, name: 'Bread', category: 'Bakery', type: 'unit', stock: 40, barcode: '1005', gstRate: 5 },
+        { id: `${newUser.id}-6`, name: 'Eggs', category: 'Dairy', type: 'unit', stock: 200, barcode: '1006', gstRate: 5 },
+        { id: `${newUser.id}-7`, name: 'Tea Powder', category: 'Beverage', type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', gstRate: 5 },
+        { id: `${newUser.id}-8`, name: 'Coffee', category: 'Beverage', type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', gstRate: 5 },
       ].map(p => ({ ...p, userId: newUser.id } as any));
 
       const productsStr = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
@@ -438,6 +453,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...sale,
       id: `sale-${Date.now()}`,
       date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     const updatedSales = [...sales, newSale];
@@ -446,6 +462,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Update product stock
     const updatedProducts = products.map((p) => {
       const saleItem = sale.items.find((item) => item.productId === p.id);
+      if (saleItem) {
+        return { ...p, stock: p.stock - saleItem.quantity };
+      }
+      return p;
+    });
+    saveProducts(updatedProducts);
+
+    clearCart();
+  };
+
+  const addSale = async (sale: any): Promise<void> => {
+    if (!user) return;
+
+    const newSale: Sale = {
+      ...sale,
+      id: `sale-${Date.now()}`,
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedSales = [...sales, newSale];
+    saveSales(updatedSales);
+
+    // Update product stock
+    const updatedProducts = products.map((p) => {
+      const saleItem = sale.items.find((item: any) => item.productId === p.id);
       if (saleItem) {
         return { ...p, stock: p.stock - saleItem.quantity };
       }
@@ -505,6 +547,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         removeFromCart,
         clearCart,
         completeSale,
+        addSale,
         addCustomer,
         updateCustomer,
       }}

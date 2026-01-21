@@ -119,9 +119,6 @@ export const ProductsPage = () => {
                 <h3 className="font-semibold text-gray-800 mb-2">{product.name}</h3>
                 <p className="text-sm text-gray-500 mb-3">{product.category}</p>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-lg font-bold text-orange-600">
-                    ₹{product.price}{product.type === 'weight' ? '/kg' : ''}
-                  </span>
                   <span
                     className={`px-2 py-1 rounded text-sm ${
                       product.stock === 0
@@ -169,7 +166,6 @@ export const ProductsPage = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Product</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Stock</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Actions</th>
@@ -187,9 +183,6 @@ export const ProductsPage = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-gray-700">{product.category}</td>
-                  <td className="px-6 py-4 font-semibold text-orange-600">
-                    ₹{product.price}{product.type === 'weight' ? '/kg' : ''}
-                  </td>
                   <td className="px-6 py-4">
                     <span
                       className={`px-2 py-1 rounded text-sm ${

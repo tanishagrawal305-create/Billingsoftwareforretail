@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useApp, Product } from '../../contexts/AppContext';
-import { Search, User, Phone, Tag, Trash2, Printer, X, Plus, Minus, Grid, List, Edit2, Check } from 'lucide-react';
+import { Search, User, Phone, Tag, Trash2, Printer, X, Plus, Minus, Grid, List } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { Invoice } from './Invoice';
+import { AddItemModal } from './AddItemModal';
 import { toast } from 'sonner';
 
 interface CartItem {
   id: string;
   product: Product;
   quantity: number;
+  price: number;
   customWeight?: number;
   customUnit?: string;
   calculatedPrice: number;
@@ -28,12 +30,9 @@ export const POSPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  // Weight input modal
-  const [showWeightModal, setShowWeightModal] = useState(false);
+  // Modal states
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [customWeight, setCustomWeight] = useState('');
-  const [customUnit, setCustomUnit] = useState('kg');
-  const [itemQuantity, setItemQuantity] = useState(1);
 
   const handlePrint = useReactToPrint({
     contentRef: invoiceRef,
@@ -68,99 +67,69 @@ export const POSPage = () => {
     }
   };
 
-  const calculatePriceForWeight = (product: Product, weight: number, unit: string): number => {
-    const weightInKg = convertToKg(weight, unit);
-    return product.price * weightInKg;
+  const openAddItemModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowAddItemModal(true);
   };
 
-  const addToCart = (product: Product) => {
-    if (product.type === 'weight') {
-      setSelectedProduct(product);
-      setCustomWeight('');
-      setCustomUnit(product.unit || 'kg');
-      setItemQuantity(1);
-      setShowWeightModal(true);
-    } else {
-      // Unit-based product - Check stock availability
-      const existingItem = cart.find((item) => item.product.id === product.id);
-      const currentQuantityInCart = existingItem ? existingItem.quantity : 0;
-      const totalQuantityNeeded = currentQuantityInCart + 1;
+  const addItemToCart = (item: {
+    product: Product;
+    price: number;
+    quantity: number;
+    customWeight?: number;
+    customUnit?: string;
+  }) => {
+    // Stock validation
+    if (item.product.type === 'weight' && item.customWeight && item.customUnit) {
+      const weightInKg = convertToKg(item.customWeight, item.customUnit);
+      const totalWeightNeeded = weightInKg * item.quantity;
 
-      if (totalQuantityNeeded > product.stock) {
-        toast.error(`Insufficient stock! Only ${product.stock} units available (${currentQuantityInCart} already in cart)`);
+      const existingWeightInCart = cart
+        .filter((cartItem) => cartItem.product.id === item.product.id)
+        .reduce((sum, cartItem) => {
+          if (cartItem.customWeight && cartItem.customUnit) {
+            const itemWeightInKg = convertToKg(cartItem.customWeight, cartItem.customUnit);
+            return sum + itemWeightInKg * cartItem.quantity;
+          }
+          return sum;
+        }, 0);
+
+      const totalWeightRequired = existingWeightInCart + totalWeightNeeded;
+
+      if (totalWeightRequired > item.product.stock) {
+        const availableWeight = item.product.stock - existingWeightInCart;
+        toast.error(
+          `Insufficient stock! Only ${item.product.stock} kg available. ${existingWeightInCart.toFixed(2)} kg already in cart. You can add ${availableWeight.toFixed(2)} kg more.`
+        );
         return;
       }
+    } else {
+      // Unit-based product
+      const currentQuantityInCart = cart
+        .filter((cartItem) => cartItem.product.id === item.product.id)
+        .reduce((sum, cartItem) => sum + cartItem.quantity, 0);
 
-      // Add to cart
-      if (existingItem) {
-        setCart(cart.map((item) => 
-          item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 } 
-            : item
-        ));
-      } else {
-        const newItem: CartItem = {
-          id: Date.now().toString(),
-          product,
-          quantity: 1,
-          calculatedPrice: product.price,
-        };
-        setCart([...cart, newItem]);
+      const totalQuantityNeeded = currentQuantityInCart + item.quantity;
+
+      if (totalQuantityNeeded > item.product.stock) {
+        toast.error(
+          `Insufficient stock! Only ${item.product.stock} units available (${currentQuantityInCart} already in cart)`
+        );
+        return;
       }
-      toast.success('Item added to cart');
-    }
-  };
-
-  const addWeightBasedItem = () => {
-    if (!selectedProduct || !customWeight) {
-      toast.error('Please enter weight');
-      return;
     }
 
-    const weight = parseFloat(customWeight);
-    if (weight <= 0) {
-      toast.error('Please enter valid weight');
-      return;
-    }
-
-    // Check stock availability for weight-based products
-    const weightInKg = convertToKg(weight, customUnit);
-    const totalWeightNeeded = weightInKg * itemQuantity;
-
-    // Calculate existing weight in cart for this product
-    const existingWeightInCart = cart
-      .filter((item) => item.product.id === selectedProduct.id)
-      .reduce((sum, item) => {
-        if (item.customWeight && item.customUnit) {
-          const itemWeightInKg = convertToKg(item.customWeight, item.customUnit);
-          return sum + itemWeightInKg * item.quantity;
-        }
-        return sum;
-      }, 0);
-
-    const totalWeightRequired = existingWeightInCart + totalWeightNeeded;
-
-    if (totalWeightRequired > selectedProduct.stock) {
-      const availableWeight = selectedProduct.stock - existingWeightInCart;
-      toast.error(
-        `Insufficient stock! Only ${selectedProduct.stock} kg available. ${existingWeightInCart.toFixed(2)} kg already in cart. You can add ${availableWeight.toFixed(2)} kg more.`
-      );
-      return;
-    }
-
-    const pricePerItem = calculatePriceForWeight(selectedProduct, weight, customUnit);
-    
     const newItem: CartItem = {
       id: Date.now().toString(),
-      product: selectedProduct,
-      quantity: itemQuantity,
-      customWeight: weight,
-      customUnit: customUnit,
-      calculatedPrice: pricePerItem,
+      product: item.product,
+      quantity: item.quantity,
+      price: item.price,
+      customWeight: item.customWeight,
+      customUnit: item.customUnit,
+      calculatedPrice: item.price,
     };
 
     setCart([...cart, newItem]);
-    setShowWeightModal(false);
     toast.success('Item added to cart');
   };
 
@@ -175,12 +144,10 @@ export const POSPage = () => {
 
     // Stock validation
     if (item.product.type === 'weight') {
-      // For weight-based products
       if (item.customWeight && item.customUnit) {
         const itemWeightInKg = convertToKg(item.customWeight, item.customUnit);
         const newTotalWeight = itemWeightInKg * quantity;
 
-        // Calculate other items' weight for the same product
         const otherItemsWeight = cart
           .filter((i) => i.product.id === item.product.id && i.id !== itemId)
           .reduce((sum, i) => {
@@ -195,13 +162,12 @@ export const POSPage = () => {
 
         if (totalWeightRequired > item.product.stock) {
           toast.error(
-            `Insufficient stock! Only ${item.product.stock} kg available. Currently using ${totalWeightRequired.toFixed(2)} kg.`
+            `Insufficient stock! Only ${item.product.stock} kg available.`
           );
           return;
         }
       }
     } else {
-      // For unit-based products
       const otherItemsQuantity = cart
         .filter((i) => i.product.id === item.product.id && i.id !== itemId)
         .reduce((sum, i) => sum + i.quantity, 0);
@@ -210,7 +176,7 @@ export const POSPage = () => {
 
       if (totalQuantityRequired > item.product.stock) {
         toast.error(
-          `Insufficient stock! Only ${item.product.stock} units available (${otherItemsQuantity} already in other cart items).`
+          `Insufficient stock! Only ${item.product.stock} units available.`
         );
         return;
       }
@@ -233,9 +199,7 @@ export const POSPage = () => {
 
   const calculateTax = () => {
     if (!gstEnabled) return 0;
-    const taxableAmount = calculateSubtotal() - calculateDiscountAmount();
-    
-    // Calculate weighted GST based on items
+
     let totalTax = 0;
     cart.forEach((item) => {
       const itemTotal = item.calculatedPrice * item.quantity;
@@ -244,7 +208,7 @@ export const POSPage = () => {
       const itemTax = (itemAfterDiscount * gstRate) / 100;
       totalTax += itemTax;
     });
-    
+
     return totalTax || 0;
   };
 
@@ -252,7 +216,7 @@ export const POSPage = () => {
     return calculateSubtotal() - calculateDiscountAmount() + calculateTax();
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
       return;
@@ -263,31 +227,47 @@ export const POSPage = () => {
       customerMobile: customerMobile || undefined,
       items: cart.map((item) => ({
         productId: item.product.id,
-        productName: item.product.name,
+        name: item.product.name,
         quantity: item.quantity,
         price: item.calculatedPrice,
         total: item.calculatedPrice * item.quantity,
-        weight: item.customWeight,
-        unit: item.customUnit,
+        type: item.product.type,
+        customWeight: item.customWeight,
+        customUnit: item.customUnit,
+        gstRate: item.product.gstRate,
       })),
       subtotal: calculateSubtotal(),
       discount: calculateDiscountAmount(),
-      tax: calculateTax(),
+      gstAmount: calculateTax(),
       total: calculateTotal(),
       paymentMethod,
-      gstEnabled,
+      applyGst: gstEnabled,
+      createdAt: new Date().toISOString(),
     };
 
-    addSale(sale);
+    await addSale(sale);
 
     if (customerName && customerMobile) {
-      addCustomer({ name: customerName, mobile: customerMobile });
+      await addCustomer({ name: customerName, mobile: customerMobile });
     }
+
+    // Update stock
+    const updatedProducts = products.map((p) => {
+      const soldItem = cart.find((item) => item.product.id === p.id);
+      if (soldItem) {
+        if (soldItem.product.type === 'weight' && soldItem.customWeight && soldItem.customUnit) {
+          const weightInKg = convertToKg(soldItem.customWeight, soldItem.customUnit);
+          return { ...p, stock: p.stock - (weightInKg * soldItem.quantity) };
+        } else {
+          return { ...p, stock: p.stock - soldItem.quantity };
+        }
+      }
+      return p;
+    });
 
     setCurrentSale({
       ...sale,
       id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
     });
 
     toast.success('Sale completed successfully!');
@@ -373,7 +353,7 @@ export const POSPage = () => {
               {filteredProducts.map((product) => (
                 <button
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => openAddItemModal(product)}
                   className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 hover:border-orange-500 hover:shadow-lg transition-all text-left touch-manipulation active:scale-95"
                 >
                   <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg h-20 sm:h-24 mb-2 sm:mb-3 flex items-center justify-center">
@@ -382,14 +362,13 @@ export const POSPage = () => {
                   <h4 className="font-medium text-gray-800 mb-1 line-clamp-2 text-sm sm:text-base">{product.name}</h4>
                   <p className="text-xs sm:text-sm text-gray-500 mb-2">{product.category}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-base sm:text-lg font-bold text-orange-600">₹{product.price}</span>
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                      {product.stock}
+                      {product.stock} {product.type === 'weight' ? product.unit : 'units'}
                     </span>
                   </div>
                   {product.type === 'weight' && (
                     <p className="text-xs text-gray-400 mt-1">
-                      per {product.unit}
+                      Weight-based ({product.unit})
                     </p>
                   )}
                 </button>
@@ -400,7 +379,7 @@ export const POSPage = () => {
               {filteredProducts.map((product) => (
                 <button
                   key={product.id}
-                  onClick={() => addToCart(product)}
+                  onClick={() => openAddItemModal(product)}
                   className="w-full bg-white rounded-lg p-4 border border-gray-200 hover:border-orange-500 hover:shadow transition-all flex items-center gap-4"
                 >
                   <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg w-16 h-16 flex items-center justify-center flex-shrink-0">
@@ -411,9 +390,11 @@ export const POSPage = () => {
                     <p className="text-sm text-gray-500">{product.category}</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-orange-600">₹{product.price}</div>
+                    <div className="text-sm font-semibold text-green-600">
+                      {product.stock} {product.type === 'weight' ? product.unit : 'units'}
+                    </div>
                     <div className="text-xs text-gray-500">
-                      {product.type === 'weight' ? `per ${product.unit}` : 'per unit'}
+                      {product.type === 'weight' ? `Weight-based` : 'Unit-based'}
                     </div>
                   </div>
                 </button>
@@ -603,116 +584,16 @@ export const POSPage = () => {
         </div>
       </div>
 
-      {/* Weight Input Modal */}
-      {showWeightModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-800">Enter Weight/Volume</h3>
-              <button
-                onClick={() => setShowWeightModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Product</p>
-                <p className="font-semibold text-gray-800">{selectedProduct.name}</p>
-                <p className="text-sm text-orange-600">₹{selectedProduct.price} per {selectedProduct.unit}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Weight/Volume *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={customWeight}
-                  onChange={(e) => setCustomWeight(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  placeholder={`Enter weight in ${customUnit}`}
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {['kg', 'g', 'ltr', 'ml'].map((unit) => (
-                    <button
-                      key={unit}
-                      onClick={() => setCustomUnit(unit)}
-                      className={`py-2 rounded-lg font-medium transition-colors ${
-                        customUnit === unit
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {unit}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
-                    className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                  >
-                    <Minus className="w-5 h-5" />
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    value={itemQuantity}
-                    onChange={(e) => setItemQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 text-center px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium"
-                  />
-                  <button
-                    onClick={() => setItemQuantity(itemQuantity + 1)}
-                    className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {customWeight && (
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Price Calculation</p>
-                  <p className="text-lg font-bold text-orange-600">
-                    ₹{calculatePriceForWeight(selectedProduct, parseFloat(customWeight), customUnit).toFixed(2)} × {itemQuantity} = 
-                    ₹{(calculatePriceForWeight(selectedProduct, parseFloat(customWeight), customUnit) * itemQuantity).toFixed(2)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => setShowWeightModal(false)}
-                className="flex-1 px-4 py-3 rounded-lg border border-gray-300 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addWeightBasedItem}
-                className="flex-1 bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 font-medium"
-              >
-                Add to Cart
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Add Item Modal */}
+      {showAddItemModal && selectedProduct && (
+        <AddItemModal
+          product={selectedProduct}
+          onClose={() => {
+            setShowAddItemModal(false);
+            setSelectedProduct(null);
+          }}
+          onAdd={addItemToCart}
+        />
       )}
 
       {/* Hidden Invoice */}

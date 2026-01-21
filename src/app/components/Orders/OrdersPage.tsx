@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { format } from 'date-fns';
-import { Receipt, Eye } from 'lucide-react';
+import { Receipt, Eye, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 export const OrdersPage = () => {
   const { sales } = useApp();
@@ -9,6 +10,102 @@ export const OrdersPage = () => {
   const sortedSales = useMemo(() => {
     return [...sales].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [sales]);
+
+  const generatePDF = (sale: any) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('JR Invoice Maker', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(16);
+    doc.text('Order Receipt', 105, 25, { align: 'center' });
+    
+    // Order Details
+    doc.setFontSize(12);
+    doc.text(`Order ID: #${sale.id.slice(-6)}`, 20, 40);
+    doc.text(`Date: ${format(new Date(sale.date || sale.createdAt), 'dd MMM yyyy, HH:mm')}`, 20, 48);
+    doc.text(`Customer: ${sale.customer?.name || sale.customerName || 'Walk-in Customer'}`, 20, 56);
+    if (sale.customer?.mobile || sale.customerMobile) {
+      doc.text(`Mobile: ${sale.customer?.mobile || sale.customerMobile}`, 20, 64);
+    }
+    doc.text(`Payment: ${sale.paymentMethod?.toUpperCase()}`, 20, 72);
+    
+    // Items Table Header
+    doc.setFontSize(10);
+    let yPos = 85;
+    doc.text('Item', 20, yPos);
+    doc.text('Unit', 110, yPos);
+    doc.text('Price', 140, yPos);
+    doc.text('Amount', 170, yPos);
+    
+    // Line under header
+    doc.line(20, yPos + 2, 190, yPos + 2);
+    yPos += 10;
+    
+    // Items
+    sale.items.forEach((item: any) => {
+      const itemName = item.name.length > 30 ? item.name.substring(0, 30) + '...' : item.name;
+      
+      // Determine the unit display based on item type
+      let unitStr = '';
+      if (item.type === 'weight') {
+        // For weight-based items, show the weight with unit
+        if (item.customWeight) {
+          unitStr = `${item.customWeight}${item.customUnit || item.unit || 'kg'}`;
+        } else {
+          // Fallback to quantity with unit
+          unitStr = `${item.quantity}${item.unit || 'kg'}`;
+        }
+      } else {
+        // For unit-based items, show quantity with 'u'
+        unitStr = `${item.quantity}u`;
+      }
+      
+      const priceStr = `₹${item.price.toFixed(2)}`;
+      const amountStr = `₹${(item.price * item.quantity).toFixed(2)}`;
+      
+      doc.text(itemName, 20, yPos);
+      doc.text(unitStr, 110, yPos);
+      doc.text(priceStr, 140, yPos);
+      doc.text(amountStr, 170, yPos);
+      yPos += 8;
+      
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      }
+    });
+    
+    // Summary
+    yPos += 5;
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+    
+    doc.setFontSize(11);
+    doc.text(`Subtotal:`, 130, yPos);
+    doc.text(`₹${sale.subtotal.toFixed(2)}`, 170, yPos);
+    yPos += 8;
+    
+    if (sale.applyGst) {
+      doc.text(`GST:`, 130, yPos);
+      doc.text(`₹${sale.gstAmount.toFixed(2)}`, 170, yPos);
+      yPos += 8;
+    }
+    
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total:`, 130, yPos);
+    doc.text(`₹${sale.total.toFixed(2)}`, 170, yPos);
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.text('Thank you for your business!', 105, 280, { align: 'center' });
+    
+    // Save
+    doc.save(`Invoice_${sale.id.slice(-6)}.pdf`);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -28,6 +125,7 @@ export const OrdersPage = () => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Items</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Payment</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Total</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -66,6 +164,16 @@ export const OrdersPage = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <span className="font-bold text-gray-800">₹{(sale.total || 0).toFixed(2)}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => generatePDF(sale)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                      title="Download PDF"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="text-sm font-medium">PDF</span>
+                    </button>
                   </td>
                 </tr>
               ))}

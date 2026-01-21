@@ -13,7 +13,6 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    price: '',
     type: 'unit' as 'unit' | 'weight',
     unit: 'kg',
     stock: '',
@@ -26,7 +25,6 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
       setFormData({
         name: product.name,
         category: product.category,
-        price: product.price.toString(),
         type: product.type,
         unit: product.unit || 'kg',
         stock: product.stock.toString(),
@@ -42,7 +40,6 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
     const productData = {
       name: formData.name,
       category: formData.category,
-      price: parseFloat(formData.price),
       type: formData.type,
       unit: formData.type === 'weight' ? formData.unit : undefined,
       stock: parseInt(formData.stock),
@@ -101,22 +98,6 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="e.g., Grocery, Beverage"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price {formData.type === 'weight' ? '(per kg) *' : '*'}
-              </label>
-              <input
-                type="number"
-                required
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="0.00"
               />
             </div>
 

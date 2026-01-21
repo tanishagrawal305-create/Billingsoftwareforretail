@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { Login } from './components/Auth/Login';
 import { Layout } from './components/Layout/Layout';
@@ -49,11 +49,11 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppProvider>
+    <AppProvider>
+      <BrowserRouter>
         <AppRoutes />
         <Toaster position="top-center" richColors />
-      </AppProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AppProvider>
   );
 }
