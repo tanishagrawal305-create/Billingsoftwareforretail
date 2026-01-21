@@ -11,6 +11,7 @@ export interface Product {
   stock: number;
   barcode?: string;
   image?: string;
+  gstRate: number;
   createdAt: string;
 }
 
@@ -18,6 +19,9 @@ export interface Customer {
   id: string;
   name: string;
   mobile: string;
+  email?: string;
+  address?: string;
+  gstNumber?: string;
 }
 
 export interface Sale {
@@ -31,12 +35,15 @@ export interface Sale {
     quantity: number;
     price: number;
     total: number;
+    weight?: number;
+    unit?: string;
   }[];
   subtotal: number;
   discount: number;
   tax: number;
   total: number;
   paymentMethod: 'cash' | 'card' | 'upi';
+  gstEnabled: boolean;
   createdAt: string;
 }
 
@@ -45,13 +52,28 @@ export interface User {
   email: string;
   name: string;
   shopName: string;
+  phone: string;
+  address: string;
+  gstNumber?: string;
+  shopLogo?: string;
+  taxRate: number;
 }
 
 interface AppContextType {
   user: User | null;
   login: (email: string, password: string) => boolean;
-  signup: (email: string, password: string, name: string, shopName: string) => boolean;
+  signup: (data: {
+    email: string;
+    password: string;
+    name: string;
+    shopName: string;
+    phone: string;
+    address: string;
+    gstNumber?: string;
+  }) => boolean;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
+  resetPassword: (email: string, newPassword: string) => boolean;
   products: Product[];
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
   updateProduct: (id: string, product: Partial<Product>) => void;
@@ -60,6 +82,7 @@ interface AppContextType {
   addSale: (sale: Omit<Sale, 'id' | 'createdAt'>) => void;
   customers: Customer[];
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
+  updateCustomer: (id: string, updates: Partial<Customer>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -87,14 +110,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     else {
       // Add sample products
       const sampleProducts: Product[] = [
-        { id: '1', name: 'Rice', category: 'Grocery', price: 45, type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', createdAt: new Date().toISOString() },
-        { id: '2', name: 'Wheat Flour', category: 'Grocery', price: 40, type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', createdAt: new Date().toISOString() },
-        { id: '3', name: 'Sugar', category: 'Grocery', price: 42, type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', createdAt: new Date().toISOString() },
-        { id: '4', name: 'Milk', category: 'Dairy', price: 60, type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', createdAt: new Date().toISOString() },
-        { id: '5', name: 'Bread', category: 'Bakery', price: 35, type: 'unit', stock: 40, barcode: '1005', createdAt: new Date().toISOString() },
-        { id: '6', name: 'Eggs', category: 'Dairy', price: 6, type: 'unit', stock: 200, barcode: '1006', createdAt: new Date().toISOString() },
-        { id: '7', name: 'Tea Powder', category: 'Beverage', price: 180, type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', createdAt: new Date().toISOString() },
-        { id: '8', name: 'Coffee', category: 'Beverage', price: 220, type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', createdAt: new Date().toISOString() },
+        { id: '1', name: 'Rice', category: 'Grocery', price: 45, type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '2', name: 'Wheat Flour', category: 'Grocery', price: 40, type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '3', name: 'Sugar', category: 'Grocery', price: 42, type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '4', name: 'Milk', category: 'Dairy', price: 60, type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '5', name: 'Bread', category: 'Bakery', price: 35, type: 'unit', stock: 40, barcode: '1005', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '6', name: 'Eggs', category: 'Dairy', price: 6, type: 'unit', stock: 200, barcode: '1006', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '7', name: 'Tea Powder', category: 'Beverage', price: 180, type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', gstRate: 5, createdAt: new Date().toISOString() },
+        { id: '8', name: 'Coffee', category: 'Beverage', price: 220, type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', gstRate: 5, createdAt: new Date().toISOString() },
       ];
       setProducts(sampleProducts);
       localStorage.setItem('products', JSON.stringify(sampleProducts));
@@ -124,32 +147,67 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const foundUser = users.find((u: any) => u.email === email && u.password === password);
     if (foundUser) {
-      setUser({ id: foundUser.id, email: foundUser.email, name: foundUser.name, shopName: foundUser.shopName });
+      setUser({ id: foundUser.id, email: foundUser.email, name: foundUser.name, shopName: foundUser.shopName, phone: foundUser.phone, address: foundUser.address, gstNumber: foundUser.gstNumber, shopLogo: foundUser.shopLogo, taxRate: foundUser.taxRate });
       return true;
     }
     return false;
   };
 
-  const signup = (email: string, password: string, name: string, shopName: string): boolean => {
+  const signup = (data: {
+    email: string;
+    password: string;
+    name: string;
+    shopName: string;
+    phone: string;
+    address: string;
+    gstNumber?: string;
+  }): boolean => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const existingUser = users.find((u: any) => u.email === email);
+    const existingUser = users.find((u: any) => u.email === data.email);
     if (existingUser) return false;
 
     const newUser = {
       id: Date.now().toString(),
-      email,
-      password,
-      name,
-      shopName,
+      email: data.email,
+      password: data.password,
+      name: data.name,
+      shopName: data.shopName,
+      phone: data.phone,
+      address: data.address,
+      gstNumber: data.gstNumber,
+      shopLogo: '',
+      taxRate: 5,
     };
     users.push(newUser);
     localStorage.setItem('users', JSON.stringify(users));
-    setUser({ id: newUser.id, email: newUser.email, name: newUser.name, shopName: newUser.shopName });
+    setUser({ id: newUser.id, email: newUser.email, name: newUser.name, shopName: newUser.shopName, phone: newUser.phone, address: newUser.address, gstNumber: newUser.gstNumber, shopLogo: newUser.shopLogo, taxRate: newUser.taxRate });
     return true;
   };
 
   const logout = () => {
     setUser(null);
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    if (user) {
+      const updatedUser: User = {
+        ...user,
+        ...updates,
+      };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const resetPassword = (email: string, newPassword: string): boolean => {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const userIndex = users.findIndex((u: any) => u.email === email);
+    if (userIndex !== -1) {
+      users[userIndex].password = newPassword;
+      localStorage.setItem('users', JSON.stringify(users));
+      return true;
+    }
+    return false;
   };
 
   const addProduct = (product: Omit<Product, 'id' | 'createdAt'>) => {
@@ -200,6 +258,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCustomers((prev) => [...prev, newCustomer]);
   };
 
+  const updateCustomer = (id: string, updates: Partial<Customer>) => {
+    setCustomers((prev) =>
+      prev.map((customer) => (customer.id === id ? { ...customer, ...updates } : customer))
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -207,6 +271,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         login,
         signup,
         logout,
+        updateUser,
+        resetPassword,
         products,
         addProduct,
         updateProduct,
@@ -215,6 +281,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addSale,
         customers,
         addCustomer,
+        updateCustomer,
       }}
     >
       {children}

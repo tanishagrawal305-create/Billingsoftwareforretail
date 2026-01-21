@@ -137,11 +137,11 @@ export const Dashboard = () => {
             </div>
             <div className={`flex items-center gap-1 text-sm ${stats.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {stats.revenueChange >= 0 ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-              {Math.abs(stats.revenueChange).toFixed(1)}%
+              {Math.abs(stats.revenueChange || 0).toFixed(1)}%
             </div>
           </div>
           <p className="text-sm text-gray-600 mb-1">Today's Revenue</p>
-          <h2 className="text-2xl font-bold text-gray-800">₹{stats.todayRevenue.toFixed(2)}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">₹{(stats.todayRevenue || 0).toFixed(2)}</h2>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -151,11 +151,11 @@ export const Dashboard = () => {
             </div>
             <div className={`flex items-center gap-1 text-sm ${stats.ordersChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {stats.ordersChange >= 0 ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-              {Math.abs(stats.ordersChange).toFixed(1)}%
+              {Math.abs(stats.ordersChange || 0).toFixed(1)}%
             </div>
           </div>
           <p className="text-sm text-gray-600 mb-1">Today's Orders</p>
-          <h2 className="text-2xl font-bold text-gray-800">{stats.todayOrders}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{stats.todayOrders || 0}</h2>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -165,7 +165,7 @@ export const Dashboard = () => {
             </div>
           </div>
           <p className="text-sm text-gray-600 mb-1">Total Products</p>
-          <h2 className="text-2xl font-bold text-gray-800">{stats.totalProducts}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{stats.totalProducts || 0}</h2>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -175,7 +175,7 @@ export const Dashboard = () => {
             </div>
           </div>
           <p className="text-sm text-gray-600 mb-1">Low Stock Alert</p>
-          <h2 className="text-2xl font-bold text-gray-800">{stats.lowStockProducts}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{stats.lowStockProducts || 0}</h2>
           {stats.outOfStockProducts > 0 && (
             <p className="text-sm text-red-600 mt-1">{stats.outOfStockProducts} out of stock</p>
           )}
@@ -229,7 +229,7 @@ export const Dashboard = () => {
                   <p className="text-sm text-gray-500">{product.quantity} units sold</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-800">₹{product.revenue.toFixed(2)}</p>
+                  <p className="font-semibold text-gray-800">₹{(product.revenue || 0).toFixed(2)}</p>
                 </div>
               </div>
             ))}

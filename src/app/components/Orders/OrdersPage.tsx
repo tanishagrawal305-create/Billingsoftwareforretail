@@ -65,7 +65,7 @@ export const OrdersPage = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <span className="font-bold text-gray-800">₹{sale.total.toFixed(2)}</span>
+                    <span className="font-bold text-gray-800">₹{(sale.total || 0).toFixed(2)}</span>
                   </td>
                 </tr>
               ))}

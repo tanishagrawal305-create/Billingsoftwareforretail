@@ -12,7 +12,7 @@ import { ReportsPage } from './components/Reports/ReportsPage';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { Toaster } from 'sonner';
 
-const AppContent = () => {
+function AppRoutes() {
   const { user } = useApp();
 
   if (!user) {
@@ -33,13 +33,13 @@ const AppContent = () => {
       </Routes>
     </Layout>
   );
-};
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <AppProvider>
-        <AppContent />
+        <AppRoutes />
         <Toaster position="top-center" richColors />
       </AppProvider>
     </BrowserRouter>

@@ -49,7 +49,7 @@ export const Layout = ({ children }: LayoutProps) => {
               <Store className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-800">PetPooja</h2>
+              <h2 className="font-bold text-gray-800">JR Invoice Maker</h2>
               <p className="text-xs text-gray-500">Retail POS</p>
             </div>
           </div>

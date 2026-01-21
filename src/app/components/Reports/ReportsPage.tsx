@@ -77,7 +77,7 @@ export const ReportsPage = () => {
             </div>
             <p className="text-sm text-gray-600">Total Revenue</p>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">₹{stats.totalRevenue.toFixed(2)}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">₹{(stats.totalRevenue || 0).toFixed(2)}</h2>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -87,7 +87,7 @@ export const ReportsPage = () => {
             </div>
             <p className="text-sm text-gray-600">Total Orders</p>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">{stats.totalOrders}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{stats.totalOrders || 0}</h2>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -97,7 +97,7 @@ export const ReportsPage = () => {
             </div>
             <p className="text-sm text-gray-600">Avg Order Value</p>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">₹{stats.avgOrderValue.toFixed(2)}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">₹{(stats.avgOrderValue || 0).toFixed(2)}</h2>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -107,7 +107,7 @@ export const ReportsPage = () => {
             </div>
             <p className="text-sm text-gray-600">Total Discount</p>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">₹{stats.totalDiscount.toFixed(2)}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">₹{(stats.totalDiscount || 0).toFixed(2)}</h2>
         </div>
       </div>
 

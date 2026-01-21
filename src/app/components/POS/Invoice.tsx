@@ -10,37 +10,12 @@ export const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ sale, shopNam
   return (
     <div ref={ref} className="p-6 bg-white" style={{ width: '80mm', fontFamily: 'monospace' }}>
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '16px', borderBottom: '2px dashed #000', paddingBottom: '16px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0' }}>
-          {shopName}
-        </h1>
-        <p style={{ fontSize: '12px', margin: '4px 0' }}>123 Business Street, City</p>
-        <p style={{ fontSize: '12px', margin: '4px 0' }}>Ph: +91 1234567890</p>
-        <p style={{ fontSize: '12px', margin: '4px 0' }}>GSTIN: 29XXXXX1234X1ZX</p>
-      </div>
-
-      {/* Bill Info */}
-      <div style={{ fontSize: '12px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span>Bill No:</span>
-          <span style={{ fontWeight: 'bold' }}>{sale.id.slice(-6)}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span>Date:</span>
-          <span>{format(new Date(sale.createdAt), 'dd/MM/yyyy HH:mm')}</span>
-        </div>
-        {sale.customerName && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span>Customer:</span>
-            <span>{sale.customerName}</span>
-          </div>
-        )}
-        {sale.customerMobile && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Mobile:</span>
-            <span>{sale.customerMobile}</span>
-          </div>
-        )}
+      <div style={{ textAlign: 'center', marginBottom: '16px', borderBottom: '2px solid #000', paddingBottom: '12px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '4px' }}>{shopName}</h1>
+        <p style={{ fontSize: '10px', marginBottom: '2px' }}>{sale.customerName || 'Walk-in Customer'}</p>
+        {sale.customerMobile && <p style={{ fontSize: '10px', marginBottom: '2px' }}>Ph: {sale.customerMobile}</p>}
+        <p style={{ fontSize: '9px', color: '#666' }}>{new Date(sale.createdAt).toLocaleString()}</p>
+        <p style={{ fontSize: '9px', fontWeight: 'bold', marginTop: '4px' }}>Invoice: #{sale.id}</p>
       </div>
 
       {/* Items */}
@@ -48,16 +23,23 @@ export const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ sale, shopNam
         <div style={{ fontSize: '11px', marginBottom: '8px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr 1fr', fontWeight: 'bold', marginBottom: '8px' }}>
             <span>ITEM</span>
-            <span style={{ textAlign: 'right' }}>QTY</span>
+            <span style={{ textAlign: 'right' }}>KG/QTY</span>
             <span style={{ textAlign: 'right' }}>PRICE</span>
             <span style={{ textAlign: 'right' }}>TOTAL</span>
           </div>
           {sale.items.map((item: any, index: number) => (
-            <div key={index} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr 1fr', marginBottom: '6px' }}>
-              <span>{item.productName}</span>
-              <span style={{ textAlign: 'right' }}>{item.quantity}</span>
-              <span style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</span>
-              <span style={{ textAlign: 'right' }}>{item.total.toFixed(2)}</span>
+            <div key={index} style={{ marginBottom: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr 1fr' }}>
+                <span>{item.productName}</span>
+                <span style={{ textAlign: 'right' }}>
+                  {item.weight && item.unit 
+                    ? `${item.weight}${item.unit}×${item.quantity}`
+                    : `${item.quantity}`
+                  }
+                </span>
+                <span style={{ textAlign: 'right' }}>{(item.price || 0).toFixed(2)}</span>
+                <span style={{ textAlign: 'right' }}>{(item.total || 0).toFixed(2)}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -67,21 +49,23 @@ export const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ sale, shopNam
       <div style={{ fontSize: '12px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
           <span>Subtotal:</span>
-          <span>₹{sale.subtotal.toFixed(2)}</span>
+          <span>₹{(sale.subtotal || 0).toFixed(2)}</span>
         </div>
         {sale.discount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
             <span>Discount:</span>
-            <span>-₹{sale.discount.toFixed(2)}</span>
+            <span>-₹{(sale.discount || 0).toFixed(2)}</span>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <span>GST (18%):</span>
-          <span>₹{sale.tax.toFixed(2)}</span>
-        </div>
+        {sale.gstEnabled && sale.tax > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span>GST:</span>
+            <span>₹{(sale.tax || 0).toFixed(2)}</span>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', paddingTop: '8px', borderTop: '1px solid #000' }}>
           <span>TOTAL:</span>
-          <span>₹{sale.total.toFixed(2)}</span>
+          <span>₹{(sale.total || 0).toFixed(2)}</span>
         </div>
       </div>
 
@@ -94,7 +78,7 @@ export const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ sale, shopNam
       {/* Footer */}
       <div style={{ borderTop: '2px dashed #000', paddingTop: '12px', textAlign: 'center', fontSize: '11px' }}>
         <p style={{ margin: '4px 0', fontWeight: 'bold' }}>Thank You! Visit Again!</p>
-        <p style={{ margin: '4px 0' }}>Powered by PetPooja</p>
+        <p style={{ margin: '4px 0' }}>Powered by JR Invoice Maker</p>
         <div style={{ marginTop: '12px' }}>
           <p style={{ fontSize: '16px', fontWeight: 'bold', letterSpacing: '2px' }}>
             ||| {sale.id.slice(-6)} |||

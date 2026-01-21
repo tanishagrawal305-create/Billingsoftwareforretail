@@ -119,7 +119,9 @@ export const ProductsPage = () => {
                 <h3 className="font-semibold text-gray-800 mb-2">{product.name}</h3>
                 <p className="text-sm text-gray-500 mb-3">{product.category}</p>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-lg font-bold text-orange-600">₹{product.price}</span>
+                  <span className="text-lg font-bold text-orange-600">
+                    ₹{product.price}{product.type === 'weight' ? '/kg' : ''}
+                  </span>
                   <span
                     className={`px-2 py-1 rounded text-sm ${
                       product.stock === 0
@@ -129,12 +131,12 @@ export const ProductsPage = () => {
                         : 'bg-green-100 text-green-600'
                     }`}
                   >
-                    Stock: {product.stock}
+                    {product.stock} {product.type === 'weight' ? 'kg' : 'units'}
                   </span>
                 </div>
                 {product.type === 'weight' && (
                   <p className="text-sm text-gray-500 mb-3">
-                    {product.quantity} {product.unit}
+                    Unit: {product.unit}
                   </p>
                 )}
                 {product.barcode && (
@@ -185,7 +187,9 @@ export const ProductsPage = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-gray-700">{product.category}</td>
-                  <td className="px-6 py-4 font-semibold text-orange-600">₹{product.price}</td>
+                  <td className="px-6 py-4 font-semibold text-orange-600">
+                    ₹{product.price}{product.type === 'weight' ? '/kg' : ''}
+                  </td>
                   <td className="px-6 py-4">
                     <span
                       className={`px-2 py-1 rounded text-sm ${
@@ -196,13 +200,13 @@ export const ProductsPage = () => {
                           : 'bg-green-100 text-green-600'
                       }`}
                     >
-                      {product.stock}
+                      {product.stock} {product.type === 'weight' ? 'kg' : 'units'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-700">
                     {product.type === 'weight'
-                      ? `${product.quantity} ${product.unit}`
-                      : 'Unit'}
+                      ? `Weight (${product.unit})`
+                      : 'Unit Based'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">

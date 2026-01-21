@@ -16,9 +16,9 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
     price: '',
     type: 'unit' as 'unit' | 'weight',
     unit: 'kg',
-    quantity: '',
     stock: '',
     barcode: '',
+    gstRate: '0',
   });
 
   useEffect(() => {
@@ -29,9 +29,9 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
         price: product.price.toString(),
         type: product.type,
         unit: product.unit || 'kg',
-        quantity: product.quantity?.toString() || '',
         stock: product.stock.toString(),
         barcode: product.barcode || '',
+        gstRate: product.gstRate?.toString() || '0',
       });
     }
   }, [product]);
@@ -45,9 +45,9 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
       price: parseFloat(formData.price),
       type: formData.type,
       unit: formData.type === 'weight' ? formData.unit : undefined,
-      quantity: formData.type === 'weight' ? parseFloat(formData.quantity) : undefined,
       stock: parseInt(formData.stock),
       barcode: formData.barcode || undefined,
+      gstRate: parseFloat(formData.gstRate),
     };
 
     if (product) {
@@ -105,7 +105,9 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Price *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price {formData.type === 'weight' ? '(per kg) *' : '*'}
+              </label>
               <input
                 type="number"
                 required
@@ -120,16 +122,17 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Stock Quantity *
+                {formData.type === 'weight' ? 'Stock (in kg) *' : 'Stock (in units) *'}
               </label>
               <input
                 type="number"
                 required
                 min="0"
+                step={formData.type === 'weight' ? '0.01' : '1'}
                 value={formData.stock}
                 onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="Available stock"
+                placeholder={formData.type === 'weight' ? 'Stock in kg' : 'Stock in units'}
               />
             </div>
 
@@ -150,40 +153,22 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
             </div>
 
             {formData.type === 'weight' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Weight/Volume *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    step="0.01"
-                    min="0"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Unit *</label>
-                  <select
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  >
-                    <option value="kg">Kilogram (kg)</option>
-                    <option value="g">Gram (g)</option>
-                    <option value="ltr">Liter (ltr)</option>
-                    <option value="ml">Milliliter (ml)</option>
-                  </select>
-                </div>
-              </>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Unit *</label>
+                <select
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="kg">Kilogram (kg)</option>
+                  <option value="g">Gram (g)</option>
+                  <option value="ltr">Liter (ltr)</option>
+                  <option value="ml">Milliliter (ml)</option>
+                </select>
+              </div>
             )}
 
-            <div className={formData.type === 'unit' ? 'md:col-span-2' : ''}>
+            <div className={formData.type === 'weight' ? '' : 'md:col-span-2'}>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Barcode (Optional)
               </label>
@@ -193,6 +178,22 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="Scan or enter barcode"
+              />
+            </div>
+
+            <div className={formData.type === 'weight' ? '' : 'md:col-span-2'}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                GST Rate (in %) *
+              </label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                min="0"
+                value={formData.gstRate}
+                onChange={(e) => setFormData({ ...formData, gstRate: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="5"
               />
             </div>
           </div>
