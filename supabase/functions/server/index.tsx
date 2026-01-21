@@ -2,20 +2,31 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.tsx";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const app = new Hono();
 
-// Create Supabase clients
-const getSupabaseClient = () => createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-);
+// Simple token generation
+const generateToken = () => {
+  return crypto.randomUUID() + '-' + Date.now();
+};
 
-const getAnonSupabaseClient = () => createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-);
+// Helper to validate token
+const getUserFromToken = async (token: string) => {
+  const session = await kv.get(`session:${token}`);
+  if (!session || !session.userId) {
+    return null;
+  }
+  
+  // Check if session expired (7 days)
+  const sessionAge = Date.now() - new Date(session.createdAt).getTime();
+  if (sessionAge > 7 * 24 * 60 * 60 * 1000) {
+    await kv.del(`session:${token}`);
+    return null;
+  }
+  
+  return session.userId;
+};
 
 // Enable logger
 app.use('*', logger(console.log));
@@ -37,6 +48,35 @@ app.get("/make-server-1f56888c/health", (c) => {
   return c.json({ status: "ok" });
 });
 
+// Debug endpoint to check KV store
+app.get("/make-server-1f56888c/debug/check-data", async (c) => {
+  try {
+    // Get all users
+    const allUsers = await kv.getByPrefix("user:");
+    const allEmails = await kv.getByPrefix("email:");
+    const allProducts = await kv.getByPrefix("product:");
+    const allSales = await kv.getByPrefix("sale:");
+    const allCustomers = await kv.getByPrefix("customer:");
+    const allSessions = await kv.getByPrefix("session:");
+    
+    return c.json({ 
+      success: true,
+      counts: {
+        users: allUsers.length,
+        emails: allEmails.length,
+        products: allProducts.length,
+        sales: allSales.length,
+        customers: allCustomers.length,
+        sessions: allSessions.length,
+      },
+      users: allUsers,
+      emails: allEmails,
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 // ========== AUTHENTICATION ROUTES ==========
 
 // Signup
@@ -44,27 +84,36 @@ app.post("/make-server-1f56888c/auth/signup", async (c) => {
   try {
     const { email, password, name, shopName, phone, address, gstNumber } = await c.req.json();
     
-    const supabase = getSupabaseClient();
+    console.log('=== SIGNUP DEBUG ===');
+    console.log('Email:', email);
+    console.log('Environment variables check:');
+    console.log('- SUPABASE_URL:', Deno.env.get('SUPABASE_URL') ? 'SET' : 'MISSING');
+    console.log('- SUPABASE_SERVICE_ROLE_KEY:', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'SET' : 'MISSING');
+    console.log('- SUPABASE_ANON_KEY:', Deno.env.get('SUPABASE_ANON_KEY') ? 'SET' : 'MISSING');
     
-    // Create user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      user_metadata: { name, shopName, phone, address, gstNumber },
-      // Automatically confirm the user's email since an email server hasn't been configured
-      email_confirm: true,
-    });
-
-    if (authError) {
-      console.log('Signup auth error:', authError);
-      return c.json({ error: authError.message }, 400);
+    // Check if user already exists
+    console.log('Checking if email exists...');
+    const existingUser = await kv.get(`email:${email.toLowerCase()}`);
+    console.log('Existing user check result:', existingUser ? 'EXISTS' : 'NOT FOUND');
+    
+    if (existingUser) {
+      console.log('Email already exists:', email);
+      return c.json({ error: 'Email already registered' }, 400);
     }
 
-    // Store user profile in KV store
-    const userId = authData.user.id;
-    await kv.set(`user:${userId}`, {
+    console.log('Hashing password...');
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password);
+    console.log('Password hashed successfully');
+    
+    // Create user
+    const userId = crypto.randomUUID();
+    console.log('Generated user ID:', userId);
+    
+    const user = {
       id: userId,
-      email,
+      email: email.toLowerCase(),
+      password: hashedPassword,
       name,
       shopName,
       phone,
@@ -73,7 +122,17 @@ app.post("/make-server-1f56888c/auth/signup", async (c) => {
       shopLogo: '',
       taxRate: 5,
       createdAt: new Date().toISOString(),
-    });
+    };
+    
+    console.log('Saving user to KV store...');
+    await kv.set(`user:${userId}`, user);
+    console.log('User saved successfully');
+    
+    console.log('Saving email mapping...');
+    await kv.set(`email:${email.toLowerCase()}`, userId);
+    console.log('Email mapping saved successfully');
+    
+    console.log('User created successfully, ID:', userId);
 
     // Initialize sample products for new user
     const sampleProducts = [
@@ -87,17 +146,41 @@ app.post("/make-server-1f56888c/auth/signup", async (c) => {
       { id: `${userId}-8`, userId, name: 'Coffee', category: 'Beverage', price: 220, type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', gstRate: 5, createdAt: new Date().toISOString() },
     ];
 
+    console.log('Saving sample products...');
     for (const product of sampleProducts) {
       await kv.set(`product:${userId}:${product.id}`, product);
     }
+    console.log('Sample products created for user:', userId);
+    
+    // Create session
+    const token = generateToken();
+    console.log('Creating session with token...');
+    await kv.set(`session:${token}`, {
+      userId,
+      createdAt: new Date().toISOString(),
+    });
+    console.log('Session created successfully');
 
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+
+    console.log('=== SIGNUP SUCCESS ===');
     return c.json({ 
       success: true, 
-      user: { id: userId, email, name, shopName, phone, address, gstNumber, shopLogo: '', taxRate: 5 }
+      accessToken: token,
+      user: userWithoutPassword
     });
   } catch (error: any) {
-    console.log('Signup error:', error);
-    return c.json({ error: error.message || 'Signup failed' }, 500);
+    console.log('=== SIGNUP ERROR ===');
+    console.log('Error message:', error.message);
+    console.log('Error name:', error.name);
+    console.log('Error stack:', error.stack);
+    console.log('Full error object:', JSON.stringify(error, null, 2));
+    return c.json({ 
+      error: error.message || 'Signup failed',
+      code: error.code || 500,
+      details: error.toString()
+    }, 500);
   }
 });
 
@@ -106,25 +189,45 @@ app.post("/make-server-1f56888c/auth/login", async (c) => {
   try {
     const { email, password } = await c.req.json();
     
-    const supabase = getAnonSupabaseClient();
+    console.log('Attempting login for email:', email);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      console.log('Login auth error:', error);
-      return c.json({ error: error.message }, 401);
+    // Get user ID from email
+    const userId = await kv.get(`email:${email.toLowerCase()}`);
+    if (!userId) {
+      console.log('Email not found:', email);
+      return c.json({ error: 'Invalid email or password' }, 401);
     }
-
-    // Get user profile from KV store
-    const userProfile = await kv.get(`user:${data.user.id}`);
+    
+    // Get user data
+    const user = await kv.get(`user:${userId}`);
+    if (!user) {
+      console.log('User data not found for ID:', userId);
+      return c.json({ error: 'Invalid email or password' }, 401);
+    }
+    
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      console.log('Password mismatch for email:', email);
+      return c.json({ error: 'Invalid email or password' }, 401);
+    }
+    
+    console.log('Login successful for user:', userId);
+    
+    // Create session
+    const token = generateToken();
+    await kv.set(`session:${token}`, {
+      userId,
+      createdAt: new Date().toISOString(),
+    });
+    
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
     
     return c.json({ 
       success: true, 
-      accessToken: data.session.access_token,
-      user: userProfile
+      accessToken: token,
+      user: userWithoutPassword
     });
   } catch (error: any) {
     console.log('Login error:', error);
@@ -140,15 +243,20 @@ app.get("/make-server-1f56888c/auth/session", async (c) => {
       return c.json({ error: 'No access token provided' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Invalid session' }, 401);
     }
 
-    const userProfile = await kv.get(`user:${user.id}`);
-    return c.json({ success: true, user: userProfile });
+    const user = await kv.get(`user:${userId}`);
+    if (!user) {
+      return c.json({ error: 'User not found' }, 401);
+    }
+    
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+    
+    return c.json({ success: true, user: userWithoutPassword });
   } catch (error: any) {
     console.log('Session error:', error);
     return c.json({ error: error.message || 'Session check failed' }, 500);
@@ -159,13 +267,9 @@ app.get("/make-server-1f56888c/auth/session", async (c) => {
 app.post("/make-server-1f56888c/auth/logout", async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
-    if (!accessToken) {
-      return c.json({ error: 'No access token provided' }, 401);
+    if (accessToken) {
+      await kv.del(`session:${accessToken}`);
     }
-
-    const supabase = getAnonSupabaseClient();
-    await supabase.auth.signOut();
-
     return c.json({ success: true });
   } catch (error: any) {
     console.log('Logout error:', error);
@@ -178,29 +282,29 @@ app.post("/make-server-1f56888c/auth/reset-password", async (c) => {
   try {
     const { email, newPassword } = await c.req.json();
     
-    const supabase = getSupabaseClient();
-    
-    // Get user by email
-    const { data: users, error: getUserError } = await supabase.auth.admin.listUsers();
-    if (getUserError) {
-      return c.json({ error: getUserError.message }, 400);
+    // Get user ID from email
+    const userId = await kv.get(`email:${email.toLowerCase()}`);
+    if (!userId) {
+      return c.json({ error: 'User not found' }, 404);
     }
-
-    const user = users.users.find((u) => u.email === email);
+    
+    // Get user data
+    const user = await kv.get(`user:${userId}`);
     if (!user) {
       return c.json({ error: 'User not found' }, 404);
     }
-
-    // Update password
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      user.id,
-      { password: newPassword }
-    );
-
-    if (updateError) {
-      return c.json({ error: updateError.message }, 400);
-    }
-
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword);
+    
+    // Update user with new password
+    await kv.set(`user:${userId}`, {
+      ...user,
+      password: hashedPassword,
+    });
+    
+    console.log('Password reset successful for user:', userId);
+    
     return c.json({ success: true });
   } catch (error: any) {
     console.log('Reset password error:', error);
@@ -216,24 +320,34 @@ app.put("/make-server-1f56888c/auth/profile", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const updates = await c.req.json();
-    const currentProfile = await kv.get(`user:${user.id}`);
+    const currentProfile = await kv.get(`user:${userId}`);
+    
+    if (!currentProfile) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+    
+    // Don't allow updating email or password through this endpoint
+    delete updates.email;
+    delete updates.password;
+    delete updates.id;
     
     const updatedProfile = {
       ...currentProfile,
       ...updates,
     };
 
-    await kv.set(`user:${user.id}`, updatedProfile);
+    await kv.set(`user:${userId}`, updatedProfile);
+    
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = updatedProfile;
 
-    return c.json({ success: true, user: updatedProfile });
+    return c.json({ success: true, user: userWithoutPassword });
   } catch (error: any) {
     console.log('Update profile error:', error);
     return c.json({ error: error.message || 'Profile update failed' }, 500);
@@ -250,14 +364,12 @@ app.get("/make-server-1f56888c/products", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const products = await kv.getByPrefix(`product:${user.id}:`);
+    const products = await kv.getByPrefix(`product:${userId}:`);
     return c.json({ success: true, products });
   } catch (error: any) {
     console.log('Get products error:', error);
@@ -273,24 +385,22 @@ app.post("/make-server-1f56888c/products", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const productData = await c.req.json();
-    const productId = `${user.id}-${Date.now()}`;
+    const productId = `${userId}-${Date.now()}`;
     
     const newProduct = {
       ...productData,
       id: productId,
-      userId: user.id,
+      userId: userId,
       createdAt: new Date().toISOString(),
     };
 
-    await kv.set(`product:${user.id}:${productId}`, newProduct);
+    await kv.set(`product:${userId}:${productId}`, newProduct);
 
     return c.json({ success: true, product: newProduct });
   } catch (error: any) {
@@ -307,17 +417,15 @@ app.put("/make-server-1f56888c/products/:id", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const productId = c.req.param('id');
     const updates = await c.req.json();
     
-    const currentProduct = await kv.get(`product:${user.id}:${productId}`);
+    const currentProduct = await kv.get(`product:${userId}:${productId}`);
     if (!currentProduct) {
       return c.json({ error: 'Product not found' }, 404);
     }
@@ -327,7 +435,7 @@ app.put("/make-server-1f56888c/products/:id", async (c) => {
       ...updates,
     };
 
-    await kv.set(`product:${user.id}:${productId}`, updatedProduct);
+    await kv.set(`product:${userId}:${productId}`, updatedProduct);
 
     return c.json({ success: true, product: updatedProduct });
   } catch (error: any) {
@@ -344,15 +452,13 @@ app.delete("/make-server-1f56888c/products/:id", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const productId = c.req.param('id');
-    await kv.del(`product:${user.id}:${productId}`);
+    await kv.del(`product:${userId}:${productId}`);
 
     return c.json({ success: true });
   } catch (error: any) {
@@ -371,14 +477,12 @@ app.get("/make-server-1f56888c/sales", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const sales = await kv.getByPrefix(`sale:${user.id}:`);
+    const sales = await kv.getByPrefix(`sale:${userId}:`);
     return c.json({ success: true, sales });
   } catch (error: any) {
     console.log('Get sales error:', error);
@@ -394,31 +498,29 @@ app.post("/make-server-1f56888c/sales", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const saleData = await c.req.json();
-    const saleId = `${user.id}-${Date.now()}`;
+    const saleId = `${userId}-${Date.now()}`;
     
     const newSale = {
       ...saleData,
       id: saleId,
-      userId: user.id,
+      userId: userId,
       createdAt: new Date().toISOString(),
     };
 
-    await kv.set(`sale:${user.id}:${saleId}`, newSale);
+    await kv.set(`sale:${userId}:${saleId}`, newSale);
 
     // Update product stock
     for (const item of saleData.items) {
-      const product = await kv.get(`product:${user.id}:${item.productId}`);
+      const product = await kv.get(`product:${userId}:${item.productId}`);
       if (product) {
         const updatedStock = product.stock - item.quantity;
-        await kv.set(`product:${user.id}:${item.productId}`, {
+        await kv.set(`product:${userId}:${item.productId}`, {
           ...product,
           stock: updatedStock,
         });
@@ -442,14 +544,12 @@ app.get("/make-server-1f56888c/customers", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const customers = await kv.getByPrefix(`customer:${user.id}:`);
+    const customers = await kv.getByPrefix(`customer:${userId}:`);
     return c.json({ success: true, customers });
   } catch (error: any) {
     console.log('Get customers error:', error);
@@ -465,32 +565,30 @@ app.post("/make-server-1f56888c/customers", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const customerData = await c.req.json();
     
     // Check if customer with mobile already exists
-    const existingCustomers = await kv.getByPrefix(`customer:${user.id}:`);
+    const existingCustomers = await kv.getByPrefix(`customer:${userId}:`);
     const exists = existingCustomers.find((c: any) => c.mobile === customerData.mobile);
     
     if (exists) {
       return c.json({ success: true, customer: exists });
     }
 
-    const customerId = `${user.id}-${Date.now()}`;
+    const customerId = `${userId}-${Date.now()}`;
     
     const newCustomer = {
       ...customerData,
       id: customerId,
-      userId: user.id,
+      userId: userId,
     };
 
-    await kv.set(`customer:${user.id}:${customerId}`, newCustomer);
+    await kv.set(`customer:${userId}:${customerId}`, newCustomer);
 
     return c.json({ success: true, customer: newCustomer });
   } catch (error: any) {
@@ -507,17 +605,15 @@ app.put("/make-server-1f56888c/customers/:id", async (c) => {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const supabase = getAnonSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-
-    if (error || !user) {
+    const userId = await getUserFromToken(accessToken);
+    if (!userId) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     const customerId = c.req.param('id');
     const updates = await c.req.json();
     
-    const currentCustomer = await kv.get(`customer:${user.id}:${customerId}`);
+    const currentCustomer = await kv.get(`customer:${userId}:${customerId}`);
     if (!currentCustomer) {
       return c.json({ error: 'Customer not found' }, 404);
     }
@@ -527,7 +623,7 @@ app.put("/make-server-1f56888c/customers/:id", async (c) => {
       ...updates,
     };
 
-    await kv.set(`customer:${user.id}:${customerId}`, updatedCustomer);
+    await kv.set(`customer:${userId}:${customerId}`, updatedCustomer);
 
     return c.json({ success: true, customer: updatedCustomer });
   } catch (error: any) {
