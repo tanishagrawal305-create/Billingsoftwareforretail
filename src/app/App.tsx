@@ -13,7 +13,19 @@ import { SettingsPage } from './components/Settings/SettingsPage';
 import { Toaster } from 'sonner';
 
 function AppRoutes() {
-  const { user } = useApp();
+  const { user, loading } = useApp();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-orange-50 to-orange-100">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500 mb-4"></div>
+          <h2 className="text-2xl font-bold text-gray-800">JR Invoice Maker</h2>
+          <p className="text-gray-600 mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Login />;

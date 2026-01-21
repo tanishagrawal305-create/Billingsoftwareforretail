@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 export interface Product {
   id: string;
@@ -61,7 +62,7 @@ export interface User {
 
 interface AppContextType {
   user: User | null;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   signup: (data: {
     email: string;
     password: string;
@@ -70,19 +71,20 @@ interface AppContextType {
     phone: string;
     address: string;
     gstNumber?: string;
-  }) => boolean;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
-  resetPassword: (email: string, newPassword: string) => boolean;
+  }) => Promise<boolean>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
+  resetPassword: (email: string, newPassword: string) => Promise<boolean>;
   products: Product[];
-  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   sales: Sale[];
-  addSale: (sale: Omit<Sale, 'id' | 'createdAt'>) => void;
+  addSale: (sale: Omit<Sale, 'id' | 'createdAt'>) => Promise<void>;
   customers: Customer[];
-  addCustomer: (customer: Omit<Customer, 'id'>) => void;
-  updateCustomer: (id: string, updates: Partial<Customer>) => void;
+  addCustomer: (customer: Omit<Customer, 'id'>) => Promise<void>;
+  updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
+  loading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -93,67 +95,106 @@ export const useApp = () => {
   return context;
 };
 
+const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-1f56888c`;
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Check session on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedProducts = localStorage.getItem('products');
-    const savedSales = localStorage.getItem('sales');
-    const savedCustomers = localStorage.getItem('customers');
+    const checkSession = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const response = await fetch(`${API_BASE}/auth/session`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setUser(data.user);
+            setAccessToken(token);
+            await fetchData(token);
+          } else {
+            localStorage.removeItem('accessToken');
+          }
+        } catch (error) {
+          console.error('Session check error:', error);
+          localStorage.removeItem('accessToken');
+        }
+      }
+      setLoading(false);
+    };
 
-    if (savedUser) setUser(JSON.parse(savedUser));
-    if (savedProducts) setProducts(JSON.parse(savedProducts));
-    else {
-      // Add sample products
-      const sampleProducts: Product[] = [
-        { id: '1', name: 'Rice', category: 'Grocery', price: 45, type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '2', name: 'Wheat Flour', category: 'Grocery', price: 40, type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '3', name: 'Sugar', category: 'Grocery', price: 42, type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '4', name: 'Milk', category: 'Dairy', price: 60, type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '5', name: 'Bread', category: 'Bakery', price: 35, type: 'unit', stock: 40, barcode: '1005', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '6', name: 'Eggs', category: 'Dairy', price: 6, type: 'unit', stock: 200, barcode: '1006', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '7', name: 'Tea Powder', category: 'Beverage', price: 180, type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', gstRate: 5, createdAt: new Date().toISOString() },
-        { id: '8', name: 'Coffee', category: 'Beverage', price: 220, type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', gstRate: 5, createdAt: new Date().toISOString() },
-      ];
-      setProducts(sampleProducts);
-      localStorage.setItem('products', JSON.stringify(sampleProducts));
-    }
-    if (savedSales) setSales(JSON.parse(savedSales));
-    if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
+    checkSession();
   }, []);
 
-  useEffect(() => {
-    if (user) localStorage.setItem('user', JSON.stringify(user));
-    else localStorage.removeItem('user');
-  }, [user]);
+  const fetchData = async (token: string) => {
+    try {
+      const [productsRes, salesRes, customersRes] = await Promise.all([
+        fetch(`${API_BASE}/products`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/sales`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/customers`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+      ]);
 
-  useEffect(() => {
-    localStorage.setItem('products', JSON.stringify(products));
-  }, [products]);
+      if (productsRes.ok) {
+        const data = await productsRes.json();
+        setProducts(data.products || []);
+      }
 
-  useEffect(() => {
-    localStorage.setItem('sales', JSON.stringify(sales));
-  }, [sales]);
+      if (salesRes.ok) {
+        const data = await salesRes.json();
+        setSales(data.sales || []);
+      }
 
-  useEffect(() => {
-    localStorage.setItem('customers', JSON.stringify(customers));
-  }, [customers]);
-
-  const login = (email: string, password: string): boolean => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
-    if (foundUser) {
-      setUser({ id: foundUser.id, email: foundUser.email, name: foundUser.name, shopName: foundUser.shopName, phone: foundUser.phone, address: foundUser.address, gstNumber: foundUser.gstNumber, shopLogo: foundUser.shopLogo, taxRate: foundUser.taxRate });
-      return true;
+      if (customersRes.ok) {
+        const data = await customersRes.json();
+        setCustomers(data.customers || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
-    return false;
   };
 
-  const signup = (data: {
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setUser(data.user);
+        setAccessToken(data.accessToken);
+        localStorage.setItem('accessToken', data.accessToken);
+        await fetchData(data.accessToken);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
+  };
+
+  const signup = async (signupData: {
     email: string;
     password: string;
     name: string;
@@ -161,107 +202,231 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     phone: string;
     address: string;
     gstNumber?: string;
-  }): boolean => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const existingUser = users.find((u: any) => u.email === data.email);
-    if (existingUser) return false;
+  }): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(signupData),
+      });
 
-    const newUser = {
-      id: Date.now().toString(),
-      email: data.email,
-      password: data.password,
-      name: data.name,
-      shopName: data.shopName,
-      phone: data.phone,
-      address: data.address,
-      gstNumber: data.gstNumber,
-      shopLogo: '',
-      taxRate: 5,
-    };
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    setUser({ id: newUser.id, email: newUser.email, name: newUser.name, shopName: newUser.shopName, phone: newUser.phone, address: newUser.address, gstNumber: newUser.gstNumber, shopLogo: newUser.shopLogo, taxRate: newUser.taxRate });
-    return true;
-  };
+      const data = await response.json();
 
-  const logout = () => {
-    setUser(null);
-  };
-
-  const updateUser = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser: User = {
-        ...user,
-        ...updates,
-      };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      if (response.ok && data.success) {
+        // Auto-login after signup
+        return await login(signupData.email, signupData.password);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Signup error:', error);
+      return false;
     }
   };
 
-  const resetPassword = (email: string, newPassword: string): boolean => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.email === email);
-    if (userIndex !== -1) {
-      users[userIndex].password = newPassword;
-      localStorage.setItem('users', JSON.stringify(users));
-      return true;
-    }
-    return false;
-  };
-
-  const addProduct = (product: Omit<Product, 'id' | 'createdAt'>) => {
-    const newProduct: Product = {
-      ...product,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    setProducts((prev) => [...prev, newProduct]);
-  };
-
-  const updateProduct = (id: string, updates: Partial<Product>) => {
-    setProducts((prev) =>
-      prev.map((product) => (product.id === id ? { ...product, ...updates } : product))
-    );
-  };
-
-  const deleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((product) => product.id !== id));
-  };
-
-  const addSale = (sale: Omit<Sale, 'id' | 'createdAt'>) => {
-    const newSale: Sale = {
-      ...sale,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    setSales((prev) => [...prev, newSale]);
-
-    sale.items.forEach((item) => {
-      const product = products.find((p) => p.id === item.productId);
-      if (product) {
-        updateProduct(item.productId, {
-          stock: product.stock - item.quantity,
+  const logout = async (): Promise<void> => {
+    try {
+      if (accessToken) {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}` },
         });
       }
-    });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setAccessToken(null);
+      setProducts([]);
+      setSales([]);
+      setCustomers([]);
+      localStorage.removeItem('accessToken');
+    }
   };
 
-  const addCustomer = (customer: Omit<Customer, 'id'>) => {
-    const existingCustomer = customers.find((c) => c.mobile === customer.mobile);
-    if (existingCustomer) return;
+  const updateUser = async (updates: Partial<User>): Promise<void> => {
+    if (!accessToken) return;
 
-    const newCustomer: Customer = {
-      ...customer,
-      id: Date.now().toString(),
-    };
-    setCustomers((prev) => [...prev, newCustomer]);
+    try {
+      const response = await fetch(`${API_BASE}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      }
+    } catch (error) {
+      console.error('Update user error:', error);
+    }
   };
 
-  const updateCustomer = (id: string, updates: Partial<Customer>) => {
-    setCustomers((prev) =>
-      prev.map((customer) => (customer.id === id ? { ...customer, ...updates } : customer))
-    );
+  const resetPassword = async (email: string, newPassword: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, newPassword }),
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return false;
+    }
+  };
+
+  const addProduct = async (product: Omit<Product, 'id' | 'createdAt'>): Promise<void> => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/products`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(product),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProducts((prev) => [...prev, data.product]);
+      }
+    } catch (error) {
+      console.error('Add product error:', error);
+    }
+  };
+
+  const updateProduct = async (id: string, updates: Partial<Product>): Promise<void> => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProducts((prev) =>
+          prev.map((product) => (product.id === id ? data.product : product))
+        );
+      }
+    } catch (error) {
+      console.error('Update product error:', error);
+    }
+  };
+
+  const deleteProduct = async (id: string): Promise<void> => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/products/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+
+      if (response.ok) {
+        setProducts((prev) => prev.filter((product) => product.id !== id));
+      }
+    } catch (error) {
+      console.error('Delete product error:', error);
+    }
+  };
+
+  const addSale = async (sale: Omit<Sale, 'id' | 'createdAt'>): Promise<void> => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(sale),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSales((prev) => [...prev, data.sale]);
+        
+        // Update local product stock
+        sale.items.forEach((item) => {
+          const product = products.find((p) => p.id === item.productId);
+          if (product) {
+            setProducts((prev) =>
+              prev.map((p) =>
+                p.id === item.productId
+                  ? { ...p, stock: p.stock - item.quantity }
+                  : p
+              )
+            );
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Add sale error:', error);
+    }
+  };
+
+  const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<void> => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/customers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(customer),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const existingCustomer = customers.find((c) => c.mobile === customer.mobile);
+        if (!existingCustomer) {
+          setCustomers((prev) => [...prev, data.customer]);
+        }
+      }
+    } catch (error) {
+      console.error('Add customer error:', error);
+    }
+  };
+
+  const updateCustomer = async (id: string, updates: Partial<Customer>): Promise<void> => {
+    if (!accessToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/customers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCustomers((prev) =>
+          prev.map((customer) => (customer.id === id ? data.customer : customer))
+        );
+      }
+    } catch (error) {
+      console.error('Update customer error:', error);
+    }
   };
 
   return (
@@ -282,6 +447,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         customers,
         addCustomer,
         updateCustomer,
+        loading,
       }}
     >
       {children}

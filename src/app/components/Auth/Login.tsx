@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 export const Login = () => {
   const { login, signup, resetPassword } = useApp();
   const [view, setView] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [loading, setLoading] = useState(false);
   
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -28,17 +29,24 @@ export const Login = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(loginEmail, loginPassword);
-    if (!success) {
-      toast.error('Invalid email or password');
-    } else {
-      toast.success('Login successful!');
+    setLoading(true);
+    try {
+      const success = await login(loginEmail, loginPassword);
+      if (!success) {
+        toast.error('Invalid email or password');
+      } else {
+        toast.success('Login successful!');
+      }
+    } catch (error) {
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (signupData.password !== signupData.confirmPassword) {
@@ -56,15 +64,22 @@ export const Login = () => {
       return;
     }
 
-    const success = signup(signupData);
-    if (!success) {
-      toast.error('Email already exists');
-    } else {
-      toast.success('Account created successfully!');
+    setLoading(true);
+    try {
+      const success = await signup(signupData);
+      if (!success) {
+        toast.error('Email already exists or signup failed');
+      } else {
+        toast.success('Account created successfully!');
+      }
+    } catch (error) {
+      toast.error('Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (newPassword !== confirmNewPassword) {
@@ -77,15 +92,22 @@ export const Login = () => {
       return;
     }
 
-    const success = resetPassword(forgotEmail, newPassword);
-    if (!success) {
-      toast.error('Email not found');
-    } else {
-      toast.success('Password reset successful!');
-      setView('login');
-      setForgotEmail('');
-      setNewPassword('');
-      setConfirmNewPassword('');
+    setLoading(true);
+    try {
+      const success = await resetPassword(forgotEmail, newPassword);
+      if (!success) {
+        toast.error('Email not found');
+      } else {
+        toast.success('Password reset successful!');
+        setView('login');
+        setForgotEmail('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } catch (error) {
+      toast.error('Password reset failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -162,10 +184,20 @@ export const Login = () => {
 
                   <button
                     type="submit"
-                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2"
+                    disabled={loading}
+                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogIn className="w-5 h-5" />
-                    Sign In
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="w-5 h-5" />
+                        Sign In
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -323,10 +355,20 @@ export const Login = () => {
 
                   <button
                     type="submit"
-                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2"
+                    disabled={loading}
+                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogIn className="w-5 h-5" />
-                    Create Account
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="w-5 h-5" />
+                        Create Account
+                      </>
+                    )}
                   </button>
                 </form>
 
