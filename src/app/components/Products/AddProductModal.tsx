@@ -84,7 +84,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Enter product name"
               />
             </div>
@@ -96,7 +96,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 required
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="e.g., Grocery, Beverage"
               />
             </div>
@@ -112,7 +112,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 step={formData.type === 'weight' ? '0.01' : '1'}
                 value={formData.stock}
                 onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder={formData.type === 'weight' ? 'Stock in kg' : 'Stock in units'}
               />
             </div>
@@ -126,7 +126,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value as 'unit' | 'weight' })
                 }
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="unit">Unit Based</option>
                 <option value="weight">Weight Based</option>
@@ -139,7 +139,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 <select
                   value={formData.unit}
                   onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="kg">Kilogram (kg)</option>
                   <option value="g">Gram (g)</option>
@@ -157,7 +157,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 type="text"
                 value={formData.barcode}
                 onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Scan or enter barcode"
               />
             </div>
@@ -173,7 +173,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 min="0"
                 value={formData.gstRate}
                 onChange={(e) => setFormData({ ...formData, gstRate: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="5"
               />
             </div>
@@ -189,7 +189,7 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
             </button>
             <button
               type="submit"
-              className="flex-1 bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
             >
               {product ? 'Update Product' : 'Add Product'}
             </button>

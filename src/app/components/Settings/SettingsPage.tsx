@@ -4,7 +4,7 @@ import { Store, User, Mail, Building, Phone, MapPin, FileText, Save, Edit2, Perc
 import { toast } from 'sonner';
 
 export const SettingsPage = () => {
-  const { user, updateUser } = useApp();
+  const { user, updateProfile, products, sales, customers } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -15,10 +15,14 @@ export const SettingsPage = () => {
     taxRate: user?.taxRate || 5,
   });
 
-  const handleSave = () => {
-    updateUser(formData);
-    setIsEditing(false);
-    toast.success('Settings updated successfully');
+  const handleSave = async () => {
+    const success = await updateProfile(formData);
+    if (success) {
+      setIsEditing(false);
+      toast.success('Settings updated successfully');
+    } else {
+      toast.error('Failed to update settings');
+    }
   };
 
   const handleCancel = () => {
@@ -211,19 +215,19 @@ export const SettingsPage = () => {
           <div className="text-center p-4 bg-orange-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Total Products</p>
             <p className="text-2xl font-bold text-orange-600">
-              {JSON.parse(localStorage.getItem('products') || '[]').length}
+              {products.length}
             </p>
           </div>
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Total Sales</p>
             <p className="text-2xl font-bold text-blue-600">
-              {JSON.parse(localStorage.getItem('sales') || '[]').length}
+              {sales.length}
             </p>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Total Customers</p>
             <p className="text-2xl font-bold text-green-600">
-              {JSON.parse(localStorage.getItem('customers') || '[]').length}
+              {customers.length}
             </p>
           </div>
         </div>
@@ -288,12 +292,13 @@ export const SettingsPage = () => {
           </p>
           <p className="flex items-center justify-between">
             <span>Data Storage:</span>
-            <span className="font-medium text-gray-800">Local Browser</span>
+            <span className="font-medium text-gray-800">Cloud Database</span>
           </p>
           <div className="pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-500">
-              <strong>Note:</strong> This application uses local browser storage. All data is stored locally on your device. 
-              For production use with multiple devices or users, consider integrating with a backend database service.
+              <strong>Note:</strong> This application uses a secure cloud database with backend API. 
+              All your data (users, products, sales, customers) is securely stored in the cloud and 
+              accessible from any device when you log in.
             </p>
           </div>
         </div>

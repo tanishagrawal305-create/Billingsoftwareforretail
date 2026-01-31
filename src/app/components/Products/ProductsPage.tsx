@@ -50,7 +50,7 @@ export const ProductsPage = () => {
             setEditingProduct(null);
             setIsModalOpen(true);
           }}
-          className="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2 font-medium"
+          className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium"
         >
           <Plus className="w-5 h-5" />
           Add Product
@@ -67,7 +67,7 @@ export const ProductsPage = () => {
               placeholder="Search products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -75,7 +75,7 @@ export const ProductsPage = () => {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
@@ -87,7 +87,7 @@ export const ProductsPage = () => {
             <button
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg ${
-                viewMode === 'grid' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
+                viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               <Grid className="w-5 h-5" />
@@ -95,7 +95,7 @@ export const ProductsPage = () => {
             <button
               onClick={() => setViewMode('list')}
               className={`p-2 rounded-lg ${
-                viewMode === 'list' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
+                viewMode === 'list' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               <List className="w-5 h-5" />
@@ -112,7 +112,7 @@ export const ProductsPage = () => {
               key={product.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
             >
-              <div className="bg-gradient-to-br from-orange-100 to-orange-200 h-32 flex items-center justify-center">
+              <div className="bg-gradient-to-br from-indigo-100 to-blue-200 h-32 flex items-center justify-center">
                 <span className="text-5xl">🛒</span>
               </div>
               <div className="p-4">

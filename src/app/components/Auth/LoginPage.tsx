@@ -8,7 +8,7 @@ export const LoginPage = ({ onSwitchToSignup }: { onSwitchToSignup: () => void }
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -17,7 +17,7 @@ export const LoginPage = ({ onSwitchToSignup }: { onSwitchToSignup: () => void }
       return;
     }
 
-    const success = login(email, password);
+    const success = await login(email, password);
     if (!success) {
       setError('Invalid email or password');
     }

@@ -112,19 +112,19 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-400 to-orange-600 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden">
         <div className="flex flex-col md:flex-row">
           {/* Left Side - Branding */}
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-8 md:w-1/2 flex flex-col justify-center items-center text-white">
+          <div className="bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 p-8 md:w-1/2 flex flex-col justify-center items-center text-white">
             <div className="bg-white bg-opacity-20 p-6 rounded-full mb-6">
               <Store className="w-16 h-16" />
             </div>
             <h1 className="text-3xl font-bold mb-4">JR Invoice Maker</h1>
-            <p className="text-center text-orange-100 mb-6">
+            <p className="text-center text-indigo-100 mb-6">
               Complete Billing & Inventory Management Solution for Retail Shops
             </p>
-            <div className="space-y-2 text-sm text-orange-100">
+            <div className="space-y-2 text-sm text-indigo-100">
               <p>✓ Advanced Weight-Based Billing</p>
               <p>✓ GST Management</p>
               <p>✓ Inventory Tracking</p>
@@ -150,7 +150,7 @@ export const Login = () => {
                         type="email"
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="your@email.com"
                         required
                       />
@@ -167,7 +167,7 @@ export const Login = () => {
                         type="password"
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="••••••••"
                         required
                       />
@@ -177,7 +177,7 @@ export const Login = () => {
                   <button
                     type="button"
                     onClick={() => setView('forgot')}
-                    className="text-sm text-orange-500 hover:text-orange-600 font-medium"
+                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     Forgot Password?
                   </button>
@@ -185,7 +185,7 @@ export const Login = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>
@@ -204,7 +204,7 @@ export const Login = () => {
                 <div className="mt-6 text-center">
                   <button
                     onClick={() => setView('signup')}
-                    className="text-orange-500 hover:text-orange-600 font-medium"
+                    className="text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     Don't have an account? Sign up
                   </button>
@@ -228,7 +228,7 @@ export const Login = () => {
                         type="text"
                         value={signupData.name}
                         onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Enter your name"
                         required
                       />
@@ -245,7 +245,7 @@ export const Login = () => {
                         type="text"
                         value={signupData.shopName}
                         onChange={(e) => setSignupData({ ...signupData, shopName: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Enter shop name"
                         required
                       />
@@ -262,7 +262,7 @@ export const Login = () => {
                         type="tel"
                         value={signupData.phone}
                         onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Enter phone number"
                         required
                       />
@@ -278,7 +278,7 @@ export const Login = () => {
                       <textarea
                         value={signupData.address}
                         onChange={(e) => setSignupData({ ...signupData, address: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Enter shop address"
                         rows={2}
                         required
@@ -296,7 +296,7 @@ export const Login = () => {
                         type="text"
                         value={signupData.gstNumber}
                         onChange={(e) => setSignupData({ ...signupData, gstNumber: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Enter GST number"
                       />
                     </div>
@@ -312,7 +312,7 @@ export const Login = () => {
                         type="email"
                         value={signupData.email}
                         onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="your@email.com"
                         required
                       />
@@ -329,7 +329,7 @@ export const Login = () => {
                         type="password"
                         value={signupData.password}
                         onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="••••••••"
                         required
                       />
@@ -346,7 +346,7 @@ export const Login = () => {
                         type="password"
                         value={signupData.confirmPassword}
                         onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="••••••••"
                         required
                       />
@@ -356,7 +356,7 @@ export const Login = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>
@@ -375,7 +375,7 @@ export const Login = () => {
                 <div className="mt-6 text-center">
                   <button
                     onClick={() => setView('login')}
-                    className="text-orange-500 hover:text-orange-600 font-medium"
+                    className="text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     Already have an account? Sign in
                   </button>
@@ -399,7 +399,7 @@ export const Login = () => {
                         type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="your@email.com"
                         required
                       />
@@ -416,7 +416,7 @@ export const Login = () => {
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="••••••••"
                         required
                       />
@@ -433,7 +433,7 @@ export const Login = () => {
                         type="password"
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="••••••••"
                         required
                       />
@@ -442,7 +442,7 @@ export const Login = () => {
 
                   <button
                     type="submit"
-                    className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                   >
                     Reset Password
                   </button>
@@ -451,7 +451,7 @@ export const Login = () => {
                 <div className="mt-6 text-center">
                   <button
                     onClick={() => setView('login')}
-                    className="text-orange-500 hover:text-orange-600 font-medium"
+                    className="text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     Back to Sign In
                   </button>

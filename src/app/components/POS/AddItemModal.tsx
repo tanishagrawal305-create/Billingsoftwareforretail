@@ -89,7 +89,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
                 min="0"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full pl-8 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full pl-8 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="0.00"
                 autoFocus
               />
@@ -109,7 +109,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
                   min="0"
                   value={customWeight}
                   onChange={(e) => setCustomWeight(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder={`Enter weight in ${customUnit}`}
                 />
               </div>
@@ -123,7 +123,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
                       onClick={() => setCustomUnit(unit)}
                       className={`py-2 rounded-lg font-medium transition-colors ${
                         customUnit === unit
-                          ? 'bg-orange-500 text-white'
+                          ? 'bg-indigo-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -152,7 +152,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
                 min="1"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-1 text-center px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-lg"
+                className="flex-1 text-center px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-lg"
               />
               <button
                 onClick={() => setQuantity(quantity + 1)}
@@ -165,7 +165,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
 
           {/* Price Preview */}
           {price && (product.type !== 'weight' || customWeight) && (
-            <div className="bg-orange-50 p-4 rounded-lg border-2 border-orange-200">
+            <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-200">
               <p className="text-sm text-gray-600 mb-1">Total Price</p>
               {product.type === 'weight' && customWeight ? (
                 <p className="text-sm text-gray-700 mb-2">
@@ -176,7 +176,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
                   ₹{price} × {quantity}
                 </p>
               )}
-              <p className="text-2xl font-bold text-orange-600">
+              <p className="text-2xl font-bold text-indigo-600">
                 ₹{calculateTotalPrice().toFixed(2)}
               </p>
             </div>
@@ -192,7 +192,7 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
           </button>
           <button
             onClick={handleSubmit}
-            className="flex-1 bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
             Add to Cart
           </button>

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { useApp } from '../../contexts/AppContext';
 import {
   TrendingUp,
@@ -14,6 +15,7 @@ import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 
 export const Dashboard = () => {
   const { sales, products } = useApp();
+  const navigate = useNavigate();
 
   // Today's sales
   const todaySales = useMemo(() => {
@@ -144,7 +146,10 @@ export const Dashboard = () => {
           <h2 className="text-2xl font-bold text-gray-800">₹{(stats.todayRevenue || 0).toFixed(2)}</h2>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <button
+          onClick={() => navigate('/orders')}
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-indigo-300 transition-all text-left cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="bg-blue-100 p-3 rounded-lg">
               <ShoppingCart className="w-6 h-6 text-blue-600" />
@@ -156,9 +161,13 @@ export const Dashboard = () => {
           </div>
           <p className="text-sm text-gray-600 mb-1">Today's Orders</p>
           <h2 className="text-2xl font-bold text-gray-800">{stats.todayOrders || 0}</h2>
-        </div>
+          <p className="text-xs text-indigo-600 mt-2 font-medium">Click to view all orders →</p>
+        </button>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <button
+          onClick={() => navigate('/products')}
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-indigo-300 transition-all text-left cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="bg-purple-100 p-3 rounded-lg">
               <Package className="w-6 h-6 text-purple-600" />
@@ -166,9 +175,13 @@ export const Dashboard = () => {
           </div>
           <p className="text-sm text-gray-600 mb-1">Total Products</p>
           <h2 className="text-2xl font-bold text-gray-800">{stats.totalProducts || 0}</h2>
-        </div>
+          <p className="text-xs text-indigo-600 mt-2 font-medium">Click to manage products →</p>
+        </button>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <button
+          onClick={() => navigate('/inventory')}
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-red-300 transition-all text-left cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="bg-red-100 p-3 rounded-lg">
               <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -179,7 +192,8 @@ export const Dashboard = () => {
           {stats.outOfStockProducts > 0 && (
             <p className="text-sm text-red-600 mt-1">{stats.outOfStockProducts} out of stock</p>
           )}
-        </div>
+          <p className="text-xs text-red-600 mt-2 font-medium">Click to check inventory →</p>
+        </button>
       </div>
 
       {/* Charts */}
@@ -221,7 +235,7 @@ export const Dashboard = () => {
           <div className="space-y-4">
             {topProducts.map((product, index) => (
               <div key={index} className="flex items-center gap-4">
-                <div className="bg-orange-100 text-orange-600 w-10 h-10 rounded-lg flex items-center justify-center font-bold">
+                <div className="bg-indigo-100 text-indigo-600 w-10 h-10 rounded-lg flex items-center justify-center font-bold">
                   {index + 1}
                 </div>
                 <div className="flex-1">

@@ -13,6 +13,10 @@ const generateToken = () => {
 
 // Helper to validate token
 const getUserFromToken = async (token: string) => {
+  if (!token) {
+    return null;
+  }
+  
   const session = await kv.get(`session:${token}`);
   if (!session || !session.userId) {
     return null;
@@ -28,6 +32,25 @@ const getUserFromToken = async (token: string) => {
   return session.userId;
 };
 
+// Helper to get session token from request
+const getSessionToken = (c: any) => {
+  // Try X-Session-Token header first
+  let token = c.req.header('X-Session-Token');
+  if (token) return token;
+  
+  // Fallback to Authorization header (removing 'Bearer ' prefix)
+  const authHeader = c.req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+    // Only use if it's not the anon key (anon key is a JWT token)
+    if (token && !token.startsWith('eyJ')) {
+      return token;
+    }
+  }
+  
+  return null;
+};
+
 // Enable logger
 app.use('*', logger(console.log));
 
@@ -36,7 +59,7 @@ app.use(
   "/*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Session-Token"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
@@ -238,7 +261,7 @@ app.post("/make-server-1f56888c/auth/login", async (c) => {
 // Get current user session
 app.get("/make-server-1f56888c/auth/session", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'No access token provided' }, 401);
     }
@@ -266,7 +289,7 @@ app.get("/make-server-1f56888c/auth/session", async (c) => {
 // Logout
 app.post("/make-server-1f56888c/auth/logout", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (accessToken) {
       await kv.del(`session:${accessToken}`);
     }
@@ -315,7 +338,7 @@ app.post("/make-server-1f56888c/auth/reset-password", async (c) => {
 // Update User Profile
 app.put("/make-server-1f56888c/auth/profile", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -359,7 +382,7 @@ app.put("/make-server-1f56888c/auth/profile", async (c) => {
 // Get all products for a user
 app.get("/make-server-1f56888c/products", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -380,7 +403,7 @@ app.get("/make-server-1f56888c/products", async (c) => {
 // Add a product
 app.post("/make-server-1f56888c/products", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -412,7 +435,7 @@ app.post("/make-server-1f56888c/products", async (c) => {
 // Update a product
 app.put("/make-server-1f56888c/products/:id", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -447,7 +470,7 @@ app.put("/make-server-1f56888c/products/:id", async (c) => {
 // Delete a product
 app.delete("/make-server-1f56888c/products/:id", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -472,7 +495,7 @@ app.delete("/make-server-1f56888c/products/:id", async (c) => {
 // Get all sales for a user
 app.get("/make-server-1f56888c/sales", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -493,7 +516,7 @@ app.get("/make-server-1f56888c/sales", async (c) => {
 // Add a sale
 app.post("/make-server-1f56888c/sales", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -539,7 +562,7 @@ app.post("/make-server-1f56888c/sales", async (c) => {
 // Get all customers for a user
 app.get("/make-server-1f56888c/customers", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -560,7 +583,7 @@ app.get("/make-server-1f56888c/customers", async (c) => {
 // Add a customer
 app.post("/make-server-1f56888c/customers", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
@@ -600,7 +623,7 @@ app.post("/make-server-1f56888c/customers", async (c) => {
 // Update a customer
 app.put("/make-server-1f56888c/customers/:id", async (c) => {
   try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const accessToken = getSessionToken(c);
     if (!accessToken) {
       return c.json({ error: 'Unauthorized' }, 401);
     }

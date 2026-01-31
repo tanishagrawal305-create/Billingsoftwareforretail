@@ -103,21 +103,10 @@ export const useApp = () => {
   return context;
 };
 
-// Simple hash function for passwords
-const hashPassword = (password: string): string => {
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-};
-
-// LocalStorage keys
+// LocalStorage Keys
 const STORAGE_KEYS = {
+  USER: 'jr_invoice_user',
   USERS: 'jr_invoice_users',
-  CURRENT_USER: 'jr_invoice_current_user',
   PRODUCTS: 'jr_invoice_products',
   SALES: 'jr_invoice_sales',
   CUSTOMERS: 'jr_invoice_customers',
@@ -131,111 +120,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Load data from localStorage on mount
+  // Load user session and data on mount
   useEffect(() => {
-    const loadData = () => {
+    const loadSession = () => {
       try {
-        // Clear old data if schema has changed (migration)
-        const migrationKey = 'jr_invoice_migration_v2';
-        const migrationDone = localStorage.getItem(migrationKey);
-        
-        if (!migrationDone) {
-          // Clear all data to start fresh with new schema
-          localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
-          localStorage.removeItem(STORAGE_KEYS.SALES);
-          localStorage.setItem(migrationKey, 'done');
-          console.log('Data migration completed - old product data cleared');
-        }
-        
-        // Load current user
-        const currentUserStr = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-        if (currentUserStr) {
-          const currentUser = JSON.parse(currentUserStr);
-          setUser(currentUser);
-          
-          // Load user-specific data
-          loadUserData(currentUser.id);
+        const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          loadUserData(parsedUser.id);
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Session load error:', error);
+        localStorage.removeItem(STORAGE_KEYS.USER);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    loadSession();
   }, []);
 
   const loadUserData = (userId: string) => {
     try {
-      const productsStr = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      const salesStr = localStorage.getItem(STORAGE_KEYS.SALES);
-      const customersStr = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-
-      if (productsStr) {
-        const allProducts = JSON.parse(productsStr);
-        setProducts(allProducts.filter((p: any) => p.userId === userId));
+      // Load products
+      const storedProducts = localStorage.getItem(`${STORAGE_KEYS.PRODUCTS}_${userId}`);
+      if (storedProducts) {
+        setProducts(JSON.parse(storedProducts));
       }
 
-      if (salesStr) {
-        const allSales = JSON.parse(salesStr);
-        setSales(allSales.filter((s: any) => s.userId === userId));
+      // Load sales
+      const storedSales = localStorage.getItem(`${STORAGE_KEYS.SALES}_${userId}`);
+      if (storedSales) {
+        setSales(JSON.parse(storedSales));
       }
 
-      if (customersStr) {
-        const allCustomers = JSON.parse(customersStr);
-        setCustomers(allCustomers.filter((c: any) => c.userId === userId));
+      // Load customers
+      const storedCustomers = localStorage.getItem(`${STORAGE_KEYS.CUSTOMERS}_${userId}`);
+      if (storedCustomers) {
+        setCustomers(JSON.parse(storedCustomers));
       }
     } catch (error) {
       console.error('Error loading user data:', error);
-    }
-  };
-
-  const saveProducts = (newProducts: Product[]) => {
-    try {
-      const productsStr = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      const allProducts = productsStr ? JSON.parse(productsStr) : [];
-      
-      // Remove current user's products and add new ones
-      const otherProducts = allProducts.filter((p: any) => p.userId !== user?.id);
-      const updatedProducts = [...otherProducts, ...newProducts.map(p => ({ ...p, userId: user?.id }))];
-      
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
-      setProducts(newProducts);
-    } catch (error) {
-      console.error('Error saving products:', error);
-    }
-  };
-
-  const saveSales = (newSales: Sale[]) => {
-    try {
-      const salesStr = localStorage.getItem(STORAGE_KEYS.SALES);
-      const allSales = salesStr ? JSON.parse(salesStr) : [];
-      
-      // Remove current user's sales and add new ones
-      const otherSales = allSales.filter((s: any) => s.userId !== user?.id);
-      const updatedSales = [...otherSales, ...newSales.map(s => ({ ...s, userId: user?.id }))];
-      
-      localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
-      setSales(newSales);
-    } catch (error) {
-      console.error('Error saving sales:', error);
-    }
-  };
-
-  const saveCustomers = (newCustomers: Customer[]) => {
-    try {
-      const customersStr = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-      const allCustomers = customersStr ? JSON.parse(customersStr) : [];
-      
-      // Remove current user's customers and add new ones
-      const otherCustomers = allCustomers.filter((c: any) => c.userId !== user?.id);
-      const updatedCustomers = [...otherCustomers, ...newCustomers.map(c => ({ ...c, userId: user?.id }))];
-      
-      localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
-      setCustomers(newCustomers);
-    } catch (error) {
-      console.error('Error saving customers:', error);
     }
   };
 
@@ -250,51 +176,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }): Promise<boolean> => {
     try {
       // Get existing users
-      const usersStr = localStorage.getItem(STORAGE_KEYS.USERS);
-      const users = usersStr ? JSON.parse(usersStr) : [];
+      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
 
       // Check if email already exists
-      if (users.find((u: any) => u.email.toLowerCase() === signupData.email.toLowerCase())) {
-        console.error('Email already registered');
+      if (users.some((u: any) => u.email === signupData.email)) {
         return false;
       }
 
       // Create new user
-      const newUser: User & { password: string } = {
-        id: `user-${Date.now()}`,
-        email: signupData.email.toLowerCase(),
-        password: hashPassword(signupData.password),
+      const newUser: User = {
+        id: Date.now().toString(),
+        email: signupData.email,
         name: signupData.name,
         shopName: signupData.shopName,
         phone: signupData.phone,
         address: signupData.address,
-        gstNumber: signupData.gstNumber || '',
-        shopLogo: '',
-        taxRate: 5,
+        gstNumber: signupData.gstNumber,
+        taxRate: 0,
       };
 
-      // Save user
-      users.push(newUser);
+      // Store password separately (in real app, this would be hashed)
+      const userWithPassword = { ...newUser, password: signupData.password };
+      users.push(userWithPassword);
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 
-      // Create sample products for new user
-      const sampleProducts: Product[] = [
-        { id: `${newUser.id}-1`, name: 'Rice', category: 'Grocery', type: 'weight', unit: 'kg', quantity: 1, stock: 100, barcode: '1001', gstRate: 5 },
-        { id: `${newUser.id}-2`, name: 'Wheat Flour', category: 'Grocery', type: 'weight', unit: 'kg', quantity: 1, stock: 80, barcode: '1002', gstRate: 5 },
-        { id: `${newUser.id}-3`, name: 'Sugar', category: 'Grocery', type: 'weight', unit: 'kg', quantity: 1, stock: 60, barcode: '1003', gstRate: 5 },
-        { id: `${newUser.id}-4`, name: 'Milk', category: 'Dairy', type: 'weight', unit: 'ltr', quantity: 1, stock: 50, barcode: '1004', gstRate: 5 },
-        { id: `${newUser.id}-5`, name: 'Bread', category: 'Bakery', type: 'unit', stock: 40, barcode: '1005', gstRate: 5 },
-        { id: `${newUser.id}-6`, name: 'Eggs', category: 'Dairy', type: 'unit', stock: 200, barcode: '1006', gstRate: 5 },
-        { id: `${newUser.id}-7`, name: 'Tea Powder', category: 'Beverage', type: 'weight', unit: 'g', quantity: 250, stock: 30, barcode: '1007', gstRate: 5 },
-        { id: `${newUser.id}-8`, name: 'Coffee', category: 'Beverage', type: 'weight', unit: 'g', quantity: 200, stock: 25, barcode: '1008', gstRate: 5 },
-      ].map(p => ({ ...p, userId: newUser.id } as any));
+      // Set current user
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
+      setUser(newUser);
+      loadUserData(newUser.id);
 
-      const productsStr = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      const allProducts = productsStr ? JSON.parse(productsStr) : [];
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify([...allProducts, ...sampleProducts]));
-
-      // Auto-login
-      return await login(signupData.email, signupData.password);
+      return true;
     } catch (error) {
       console.error('Signup error:', error);
       return false;
@@ -303,29 +215,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const usersStr = localStorage.getItem(STORAGE_KEYS.USERS);
-      const users = usersStr ? JSON.parse(usersStr) : [];
+      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
 
-      const user = users.find((u: any) => 
-        u.email.toLowerCase() === email.toLowerCase() && 
-        u.password === hashPassword(password)
+      const foundUser = users.find(
+        (u: any) => u.email === email && u.password === password
       );
 
-      if (!user) {
-        console.error('Invalid email or password');
-        return false;
+      if (foundUser) {
+        const { password: _, ...userWithoutPassword } = foundUser;
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userWithoutPassword));
+        setUser(userWithoutPassword);
+        loadUserData(userWithoutPassword.id);
+        return true;
       }
 
-      // Remove password from user object
-      const { password: _, ...userWithoutPassword } = user;
-      
-      setUser(userWithoutPassword);
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userWithoutPassword));
-      
-      // Load user data
-      loadUserData(user.id);
-      
-      return true;
+      return false;
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -333,29 +238,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const logout = (): void => {
+    localStorage.removeItem(STORAGE_KEYS.USER);
     setUser(null);
     setProducts([]);
     setSales([]);
     setCustomers([]);
     setCart([]);
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   };
 
   const resetPassword = async (email: string, newPassword: string): Promise<boolean> => {
     try {
-      const usersStr = localStorage.getItem(STORAGE_KEYS.USERS);
-      const users = usersStr ? JSON.parse(usersStr) : [];
+      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
 
-      const userIndex = users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
-      
+      const userIndex = users.findIndex((u: any) => u.email === email);
       if (userIndex === -1) {
-        console.error('User not found');
         return false;
       }
 
-      users[userIndex].password = hashPassword(newPassword);
+      users[userIndex].password = newPassword;
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-      
       return true;
     } catch (error) {
       console.error('Reset password error:', error);
@@ -367,22 +269,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user) return false;
 
     try {
-      const usersStr = localStorage.getItem(STORAGE_KEYS.USERS);
-      const users = usersStr ? JSON.parse(usersStr) : [];
+      const updatedUser = { ...user, ...updates };
 
+      // Update in users list
+      const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
       const userIndex = users.findIndex((u: any) => u.id === user.id);
       
-      if (userIndex === -1) return false;
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], ...updates };
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      }
 
-      const updatedUser = { ...users[userIndex], ...updates };
-      users[userIndex] = updatedUser;
-      
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-      
-      const { password: _, ...userWithoutPassword } = updatedUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userWithoutPassword));
-      
+      // Update current user
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      setUser(updatedUser);
       return true;
     } catch (error) {
       console.error('Update profile error:', error);
@@ -393,25 +294,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addProduct = async (product: Omit<Product, 'id'>): Promise<void> => {
     if (!user) return;
 
-    const newProduct: Product = {
-      ...product,
-      id: `${user.id}-${Date.now()}`,
-    };
+    try {
+      const newProduct: Product = {
+        ...product,
+        id: Date.now().toString(),
+      };
 
-    const updatedProducts = [...products, newProduct];
-    saveProducts(updatedProducts);
+      const updatedProducts = [...products, newProduct];
+      setProducts(updatedProducts);
+      localStorage.setItem(`${STORAGE_KEYS.PRODUCTS}_${user.id}`, JSON.stringify(updatedProducts));
+    } catch (error) {
+      console.error('Add product error:', error);
+      throw error;
+    }
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>): Promise<void> => {
-    const updatedProducts = products.map((p) =>
-      p.id === id ? { ...p, ...updates } : p
-    );
-    saveProducts(updatedProducts);
+    if (!user) return;
+
+    try {
+      const updatedProducts = products.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      );
+      setProducts(updatedProducts);
+      localStorage.setItem(`${STORAGE_KEYS.PRODUCTS}_${user.id}`, JSON.stringify(updatedProducts));
+    } catch (error) {
+      console.error('Update product error:', error);
+      throw error;
+    }
   };
 
   const deleteProduct = async (id: string): Promise<void> => {
-    const updatedProducts = products.filter((p) => p.id !== id);
-    saveProducts(updatedProducts);
+    if (!user) return;
+
+    try {
+      const updatedProducts = products.filter((p) => p.id !== id);
+      setProducts(updatedProducts);
+      localStorage.setItem(`${STORAGE_KEYS.PRODUCTS}_${user.id}`, JSON.stringify(updatedProducts));
+    } catch (error) {
+      console.error('Delete product error:', error);
+      throw error;
+    }
   };
 
   const addToCart = (item: CartItem): void => {
@@ -449,80 +372,100 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const completeSale = async (sale: Omit<Sale, 'id' | 'date'>): Promise<void> => {
     if (!user) return;
 
-    const newSale: Sale = {
-      ...sale,
-      id: `sale-${Date.now()}`,
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const newSale: Sale = {
+        ...sale,
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+      };
 
-    const updatedSales = [...sales, newSale];
-    saveSales(updatedSales);
+      const updatedSales = [...sales, newSale];
+      setSales(updatedSales);
+      localStorage.setItem(`${STORAGE_KEYS.SALES}_${user.id}`, JSON.stringify(updatedSales));
 
-    // Update product stock
-    const updatedProducts = products.map((p) => {
-      const saleItem = sale.items.find((item) => item.productId === p.id);
-      if (saleItem) {
-        return { ...p, stock: p.stock - saleItem.quantity };
-      }
-      return p;
-    });
-    saveProducts(updatedProducts);
+      // Update product stock
+      const updatedProducts = products.map((p) => {
+        const saleItem = sale.items.find((item) => item.productId === p.id);
+        if (saleItem) {
+          return { ...p, stock: p.stock - saleItem.quantity };
+        }
+        return p;
+      });
+      setProducts(updatedProducts);
+      localStorage.setItem(`${STORAGE_KEYS.PRODUCTS}_${user.id}`, JSON.stringify(updatedProducts));
 
-    clearCart();
+      clearCart();
+    } catch (error) {
+      console.error('Complete sale error:', error);
+      throw error;
+    }
   };
 
   const addSale = async (sale: any): Promise<void> => {
     if (!user) return;
 
-    const newSale: Sale = {
-      ...sale,
-      id: `sale-${Date.now()}`,
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const newSale: Sale = {
+        ...sale,
+        id: sale.id || Date.now().toString(),
+        date: sale.date || new Date().toISOString(),
+      };
 
-    const updatedSales = [...sales, newSale];
-    saveSales(updatedSales);
+      const updatedSales = [...sales, newSale];
+      setSales(updatedSales);
+      localStorage.setItem(`${STORAGE_KEYS.SALES}_${user.id}`, JSON.stringify(updatedSales));
 
-    // Update product stock
-    const updatedProducts = products.map((p) => {
-      const saleItem = sale.items.find((item: any) => item.productId === p.id);
-      if (saleItem) {
-        return { ...p, stock: p.stock - saleItem.quantity };
-      }
-      return p;
-    });
-    saveProducts(updatedProducts);
+      // Update product stock
+      const updatedProducts = products.map((p) => {
+        const saleItem = sale.items.find((item: any) => item.productId === p.id);
+        if (saleItem) {
+          return { ...p, stock: p.stock - saleItem.quantity };
+        }
+        return p;
+      });
+      setProducts(updatedProducts);
+      localStorage.setItem(`${STORAGE_KEYS.PRODUCTS}_${user.id}`, JSON.stringify(updatedProducts));
 
-    clearCart();
+      clearCart();
+    } catch (error) {
+      console.error('Add sale error:', error);
+      throw error;
+    }
   };
 
   const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer> => {
     if (!user) throw new Error('Not authenticated');
 
-    // Check if customer with mobile already exists
-    const existing = customers.find((c) => c.mobile === customer.mobile);
-    if (existing) {
-      return existing;
+    try {
+      const newCustomer: Customer = {
+        ...customer,
+        id: Date.now().toString(),
+      };
+
+      const updatedCustomers = [...customers, newCustomer];
+      setCustomers(updatedCustomers);
+      localStorage.setItem(`${STORAGE_KEYS.CUSTOMERS}_${user.id}`, JSON.stringify(updatedCustomers));
+
+      return newCustomer;
+    } catch (error) {
+      console.error('Add customer error:', error);
+      throw error;
     }
-
-    const newCustomer: Customer = {
-      ...customer,
-      id: `customer-${Date.now()}`,
-    };
-
-    const updatedCustomers = [...customers, newCustomer];
-    saveCustomers(updatedCustomers);
-
-    return newCustomer;
   };
 
   const updateCustomer = async (id: string, updates: Partial<Customer>): Promise<void> => {
-    const updatedCustomers = customers.map((c) =>
-      c.id === id ? { ...c, ...updates } : c
-    );
-    saveCustomers(updatedCustomers);
+    if (!user) return;
+
+    try {
+      const updatedCustomers = customers.map((c) =>
+        c.id === id ? { ...c, ...updates } : c
+      );
+      setCustomers(updatedCustomers);
+      localStorage.setItem(`${STORAGE_KEYS.CUSTOMERS}_${user.id}`, JSON.stringify(updatedCustomers));
+    } catch (error) {
+      console.error('Update customer error:', error);
+      throw error;
+    }
   };
 
   return (

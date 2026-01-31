@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import { useApp, Product } from '../../contexts/AppContext';
-import { Search, User, Phone, Tag, Trash2, Printer, X, Plus, Minus, Grid, List } from 'lucide-react';
+import { Search, User, Phone, Tag, Trash2, Printer, X, Plus, Minus, Grid, List, Home, MessageCircle, Send, HelpCircle } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { Invoice } from './Invoice';
 import { AddItemModal } from './AddItemModal';
+import { CustomerSupportModal } from '../CustomerSupport/CustomerSupportModal';
 import { toast } from 'sonner';
 
 interface CartItem {
@@ -17,7 +19,8 @@ interface CartItem {
 }
 
 export const POSPage = () => {
-  const { products, addSale, addCustomer, user } = useApp();
+  const navigate = useNavigate();
+  const { products, addSale, addCustomer, user, updateProduct } = useApp();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,10 +32,12 @@ export const POSPage = () => {
   const [currentSale, setCurrentSale] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const [amountReceived, setAmountReceived] = useState<string>('');
 
   // Modal states
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showCustomerSupportModal, setShowCustomerSupportModal] = useState(false);
 
   const handlePrint = useReactToPrint({
     contentRef: invoiceRef,
@@ -216,6 +221,43 @@ export const POSPage = () => {
     return calculateSubtotal() - calculateDiscountAmount() + calculateTax();
   };
 
+  const sendBillToWhatsApp = () => {
+    if (!customerMobile) {
+      toast.error('Please enter customer mobile number');
+      return;
+    }
+
+    if (!currentSale) {
+      toast.error('Please complete the sale first');
+      return;
+    }
+
+    const message = `*${user?.shopName || 'JR Invoice Maker'}*\n\n` +
+      `Invoice: #${currentSale.id}\n` +
+      `Date: ${new Date(currentSale.createdAt).toLocaleString()}\n\n` +
+      `*Customer:* ${customerName || 'Walk-in'}\n` +
+      `*Mobile:* ${customerMobile}\n\n` +
+      `*Items:*\n` +
+      currentSale.items.map((item: any, i: number) => 
+        `${i + 1}. ${item.name}${item.customWeight ? ` - ${item.customWeight}${item.customUnit}` : ''} x${item.quantity}\n   ₹${item.price.toFixed(2)} = ₹${item.total.toFixed(2)}`
+      ).join('\n') +
+      `\n\n*Subtotal:* ₹${currentSale.subtotal.toFixed(2)}\n` +
+      (currentSale.discount > 0 ? `*Discount:* -₹${currentSale.discount.toFixed(2)}\n` : '') +
+      (gstEnabled && currentSale.gstAmount > 0 ? `*GST:* ₹${currentSale.gstAmount.toFixed(2)}\n` : '') +
+      `*Total:* ₹${currentSale.total.toFixed(2)}\n\n` +
+      `*Payment:* ${currentSale.paymentMethod.toUpperCase()}\n\n` +
+      `Thank you for shopping with us!\n` +
+      `${user?.address || ''}\n` +
+      `${user?.phone || ''}`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const phoneNumber = customerMobile.replace(/[^0-9]/g, '');
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+    toast.success('Opening WhatsApp to send bill');
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
@@ -251,19 +293,36 @@ export const POSPage = () => {
       await addCustomer({ name: customerName, mobile: customerMobile });
     }
 
-    // Update stock
-    const updatedProducts = products.map((p) => {
-      const soldItem = cart.find((item) => item.product.id === p.id);
-      if (soldItem) {
-        if (soldItem.product.type === 'weight' && soldItem.customWeight && soldItem.customUnit) {
-          const weightInKg = convertToKg(soldItem.customWeight, soldItem.customUnit);
-          return { ...p, stock: p.stock - (weightInKg * soldItem.quantity) };
-        } else {
-          return { ...p, stock: p.stock - soldItem.quantity };
-        }
+    // Update stock for all products in cart
+    // Group cart items by product ID and calculate total deduction per product
+    const stockDeductions = new Map<string, number>();
+    
+    cart.forEach((cartItem) => {
+      const productId = cartItem.product.id;
+      let deduction = 0;
+      
+      if (cartItem.product.type === 'weight' && cartItem.customWeight && cartItem.customUnit) {
+        // For weight-based products, convert to kg and multiply by quantity
+        const weightInKg = convertToKg(cartItem.customWeight, cartItem.customUnit);
+        deduction = weightInKg * cartItem.quantity;
+      } else {
+        // For unit-based products
+        deduction = cartItem.quantity;
       }
-      return p;
+      
+      // Add to existing deduction for this product
+      const currentDeduction = stockDeductions.get(productId) || 0;
+      stockDeductions.set(productId, currentDeduction + deduction);
     });
+
+    // Update stock for each product
+    for (const [productId, totalDeduction] of stockDeductions.entries()) {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        const newStock = Math.max(0, product.stock - totalDeduction);
+        await updateProduct(productId, { stock: newStock });
+      }
+    }
 
     setCurrentSale({
       ...sale,
@@ -277,6 +336,7 @@ export const POSPage = () => {
     setCustomerMobile('');
     setDiscount(0);
     setSearchTerm('');
+    setAmountReceived('');
   };
 
   const clearCart = () => {
@@ -286,6 +346,24 @@ export const POSPage = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* Floating Action Buttons - Right Side */}
+      <div className="fixed bottom-6 right-6 lg:right-6 right-4 z-[45] flex flex-col gap-3">
+        <button
+          onClick={() => navigate('/')}
+          className="bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 transition-all hover:scale-110 flex items-center justify-center"
+          title="Go to Dashboard"
+        >
+          <Home className="w-6 h-6" />
+        </button>
+        <button
+          onClick={() => setShowCustomerSupportModal(true)}
+          className="bg-green-600 text-white p-4 rounded-full shadow-lg hover:bg-green-700 transition-all hover:scale-110 flex items-center justify-center"
+          title="Customer Support"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+      </div>
+
       {/* Left Sidebar - Categories */}
       <div className="hidden sm:block w-40 lg:w-48 bg-white border-r border-gray-200 overflow-y-auto flex-shrink-0">
         <div className="p-3 lg:p-4 border-b border-gray-200">
@@ -298,7 +376,7 @@ export const POSPage = () => {
               onClick={() => setSelectedCategory(category)}
               className={`w-full text-left px-3 lg:px-4 py-2 lg:py-3 rounded-lg mb-1 transition-colors text-sm lg:text-base touch-manipulation ${
                 selectedCategory === category
-                  ? 'bg-orange-500 text-white font-medium'
+                  ? 'bg-indigo-600 text-white font-medium'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
@@ -319,7 +397,7 @@ export const POSPage = () => {
                 placeholder="Search products or scan barcode..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="flex gap-2">
@@ -327,7 +405,7 @@ export const POSPage = () => {
                 onClick={() => setViewMode('grid')}
                 className={`p-3 rounded-lg ${
                   viewMode === 'grid'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-indigo-600 text-white'
                     : 'bg-gray-200 text-gray-600'
                 }`}
               >
@@ -337,7 +415,7 @@ export const POSPage = () => {
                 onClick={() => setViewMode('list')}
                 className={`p-3 rounded-lg ${
                   viewMode === 'list'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-indigo-600 text-white'
                     : 'bg-gray-200 text-gray-600'
                 }`}
               >
@@ -354,9 +432,9 @@ export const POSPage = () => {
                 <button
                   key={product.id}
                   onClick={() => openAddItemModal(product)}
-                  className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 hover:border-orange-500 hover:shadow-lg transition-all text-left touch-manipulation active:scale-95"
+                  className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 hover:border-indigo-500 hover:shadow-lg transition-all text-left touch-manipulation active:scale-95"
                 >
-                  <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg h-20 sm:h-24 mb-2 sm:mb-3 flex items-center justify-center">
+                  <div className="bg-gradient-to-br from-indigo-100 to-blue-200 rounded-lg h-20 sm:h-24 mb-2 sm:mb-3 flex items-center justify-center">
                     <span className="text-2xl sm:text-3xl">🛒</span>
                   </div>
                   <h4 className="font-medium text-gray-800 mb-1 line-clamp-2 text-sm sm:text-base">{product.name}</h4>
@@ -380,9 +458,9 @@ export const POSPage = () => {
                 <button
                   key={product.id}
                   onClick={() => openAddItemModal(product)}
-                  className="w-full bg-white rounded-lg p-4 border border-gray-200 hover:border-orange-500 hover:shadow transition-all flex items-center gap-4"
+                  className="w-full bg-white rounded-lg p-4 border border-gray-200 hover:border-indigo-500 hover:shadow transition-all flex items-center gap-4"
                 >
-                  <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg w-16 h-16 flex items-center justify-center flex-shrink-0">
+                  <div className="bg-gradient-to-br from-indigo-100 to-blue-200 rounded-lg w-16 h-16 flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl">🛒</span>
                   </div>
                   <div className="flex-1 text-left">
@@ -426,17 +504,17 @@ export const POSPage = () => {
                 placeholder="Customer Name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                className="w-full pl-9 pr-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="tel"
-                placeholder="Mobile Number"
+                placeholder="Mobile Number (for bill)"
                 value={customerMobile}
                 onChange={(e) => setCustomerMobile(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                className="w-full pl-9 pr-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
           </div>
@@ -459,7 +537,7 @@ export const POSPage = () => {
                         ₹{(item.calculatedPrice || 0).toFixed(2)} each
                       </p>
                       {item.customWeight && (
-                        <p className="text-xs text-orange-600 font-medium mt-1">
+                        <p className="text-xs text-indigo-600 font-medium mt-1">
                           {item.customWeight} {item.customUnit}
                         </p>
                       )}
@@ -487,7 +565,7 @@ export const POSPage = () => {
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
-                    <span className="font-bold text-orange-600">
+                    <span className="font-bold text-indigo-600">
                       ₹{((item.calculatedPrice || 0) * item.quantity).toFixed(2)}
                     </span>
                   </div>
@@ -505,7 +583,7 @@ export const POSPage = () => {
               placeholder="Discount %"
               value={discount || ''}
               onChange={(e) => setDiscount(Math.max(0, Math.min(100, Number(e.target.value))))}
-              className="flex-1 px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+              className="flex-1 px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
           </div>
 
@@ -544,7 +622,7 @@ export const POSPage = () => {
             )}
             <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
               <span>Total:</span>
-              <span className="text-orange-600">₹{calculateTotal().toFixed(2)}</span>
+              <span className="text-indigo-600">₹{calculateTotal().toFixed(2)}</span>
             </div>
           </div>
 
@@ -555,7 +633,7 @@ export const POSPage = () => {
                 onClick={() => setPaymentMethod(method as any)}
                 className={`py-2 rounded text-sm font-medium transition-colors ${
                   paymentMethod === method
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-indigo-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -564,22 +642,87 @@ export const POSPage = () => {
             ))}
           </div>
 
+          {/* Change Calculator */}
+          {cart.length > 0 && (
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="bg-emerald-500 p-1.5 rounded">
+                  <span className="text-white text-lg">💰</span>
+                </div>
+                <h3 className="font-bold text-emerald-800">Change Calculator</h3>
+              </div>
+              
+              <div>
+                <label className="text-xs font-medium text-emerald-700 mb-1 block">
+                  Amount Received from Customer
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border-2 border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-base font-medium"
+                />
+              </div>
+
+              {amountReceived && parseFloat(amountReceived) > 0 && (
+                <div className="space-y-2 pt-2 border-t-2 border-emerald-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-emerald-700">Bill Amount:</span>
+                    <span className="text-sm font-bold text-emerald-900">₹{calculateTotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-emerald-700">Received:</span>
+                    <span className="text-sm font-bold text-emerald-900">₹{parseFloat(amountReceived).toFixed(2)}</span>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border-2 border-emerald-300">
+                    <div className="flex justify-between items-center">
+                      <span className="text-base font-bold text-emerald-700">Return Change:</span>
+                      <span className={`text-2xl font-bold ${
+                        parseFloat(amountReceived) >= calculateTotal()
+                          ? 'text-emerald-600'
+                          : 'text-red-600'
+                      }`}>
+                        ₹{Math.max(0, parseFloat(amountReceived) - calculateTotal()).toFixed(2)}
+                      </span>
+                    </div>
+                    {parseFloat(amountReceived) < calculateTotal() && (
+                      <p className="text-xs text-red-600 mt-1 font-medium">
+                        ⚠️ Amount is less than bill total!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             onClick={handleCheckout}
             disabled={cart.length === 0}
-            className="w-full py-3 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            className="w-full py-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
           >
             Pay ₹{calculateTotal().toFixed(2)}
           </button>
 
           {currentSale && (
-            <button
-              onClick={handlePrint}
-              className="w-full py-3 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <Printer className="w-4 h-4" />
-              Print Bill
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handlePrint}
+                className="w-full py-3 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                Print Bill
+              </button>
+              <button
+                onClick={sendBillToWhatsApp}
+                disabled={!customerMobile}
+                className="w-full py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                <Send className="w-4 h-4" />
+                Send to WhatsApp
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -596,10 +739,18 @@ export const POSPage = () => {
         />
       )}
 
+      {/* Customer Support Modal */}
+      {showCustomerSupportModal && (
+        <CustomerSupportModal
+          isOpen={showCustomerSupportModal}
+          onClose={() => setShowCustomerSupportModal(false)}
+        />
+      )}
+
       {/* Hidden Invoice */}
       {currentSale && (
         <div style={{ display: 'none' }}>
-          <Invoice ref={invoiceRef} sale={currentSale} shopName={user?.shopName || 'Retail Shop'} />
+          <Invoice ref={invoiceRef} sale={currentSale} user={user} />
         </div>
       )}
     </div>

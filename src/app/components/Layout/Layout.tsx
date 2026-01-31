@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -13,8 +13,15 @@ import {
   Menu,
   X,
   User,
+  HelpCircle,
+  Command,
+  Keyboard,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import { CustomerSupportModal } from '../CustomerSupport/CustomerSupportModal';
+import { CommandPalette } from '../QuickActions/CommandPalette';
+import { KeyboardShortcutsModal } from '../QuickActions/KeyboardShortcutsModal';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,6 +30,14 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const { user, logout } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showCustomerSupportModal, setShowCustomerSupportModal] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
+  // Setup keyboard shortcuts
+  useKeyboardShortcuts({
+    onCommandPalette: () => setShowCommandPalette(true),
+  });
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -45,7 +60,7 @@ export const Layout = ({ children }: LayoutProps) => {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="bg-orange-500 p-2 rounded-lg">
+            <div className="bg-indigo-600 p-2 rounded-lg">
               <Store className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -71,7 +86,7 @@ export const Layout = ({ children }: LayoutProps) => {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? 'bg-orange-50 text-orange-600 font-medium'
+                    ? 'bg-indigo-50 text-indigo-600 font-medium'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`
               }
@@ -86,8 +101,8 @@ export const Layout = ({ children }: LayoutProps) => {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
           <div className="bg-gray-50 rounded-lg p-4 mb-3">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-orange-100 p-2 rounded-full">
-                <User className="w-5 h-5 text-orange-600" />
+              <div className="bg-indigo-100 p-2 rounded-full">
+                <User className="w-5 h-5 text-indigo-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 truncate">{user?.name}</p>
@@ -125,6 +140,12 @@ export const Layout = ({ children }: LayoutProps) => {
               <User className="w-4 h-4 text-gray-600" />
               <span className="text-sm text-gray-700">{user?.name}</span>
             </div>
+            <button
+              onClick={() => setShowCustomerSupportModal(true)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <HelpCircle className="w-6 h-6" />
+            </button>
           </div>
         </header>
 
@@ -139,6 +160,58 @@ export const Layout = ({ children }: LayoutProps) => {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Customer Support Modal */}
+      {showCustomerSupportModal && (
+        <CustomerSupportModal
+          isOpen={showCustomerSupportModal}
+          onClose={() => setShowCustomerSupportModal(false)}
+        />
+      )}
+
+      {/* Command Palette */}
+      {showCommandPalette && (
+        <CommandPalette
+          isOpen={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+          onShowShortcuts={() => {
+            setShowCommandPalette(false);
+            setShowKeyboardShortcuts(true);
+          }}
+        />
+      )}
+
+      {/* Keyboard Shortcuts Modal */}
+      {showKeyboardShortcuts && (
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+        />
+      )}
+
+      {/* Floating Quick Actions Buttons */}
+      <div className="fixed bottom-6 left-6 z-[9999] flex flex-col gap-3">
+        <button
+          onClick={() => setShowCommandPalette(true)}
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-indigo-500/50 hover:scale-110 transition-all group"
+          title="Quick Actions (Ctrl+K)"
+        >
+          <Command className="w-6 h-6" />
+          <span className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden lg:block">
+            Quick Actions <kbd className="ml-2 px-1.5 py-0.5 bg-gray-700 rounded">Ctrl+K</kbd>
+          </span>
+        </button>
+        <button
+          onClick={() => setShowKeyboardShortcuts(true)}
+          className="bg-gray-700 text-white p-3 rounded-full shadow-lg hover:bg-gray-800 hover:scale-110 transition-all group"
+          title="Keyboard Shortcuts"
+        >
+          <Keyboard className="w-5 h-5" />
+          <span className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden lg:block">
+            View Shortcuts
+          </span>
+        </button>
+      </div>
     </div>
   );
 };

@@ -8,14 +8,18 @@ export const SignupPage = ({ onSwitchToLogin }: { onSwitchToLogin: () => void })
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [shopName, setShopName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [gstNumber, setGstNumber] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+    if (!name || !email || !password || !confirmPassword || !shopName || !phone || !address) {
+      setError('Please fill in all required fields');
       return;
     }
 
@@ -29,7 +33,16 @@ export const SignupPage = ({ onSwitchToLogin }: { onSwitchToLogin: () => void })
       return;
     }
 
-    const success = signup(email, password, name);
+    const success = await signup({
+      email,
+      password,
+      name,
+      shopName,
+      phone,
+      address,
+      gstNumber: gstNumber || undefined,
+    });
+    
     if (!success) {
       setError('Email already exists');
     }
@@ -37,7 +50,7 @@ export const SignupPage = ({ onSwitchToLogin }: { onSwitchToLogin: () => void })
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-center mb-8">
           <div className="bg-indigo-600 p-3 rounded-full">
             <ShoppingBag className="w-8 h-8 text-white" />
@@ -47,52 +60,103 @@ export const SignupPage = ({ onSwitchToLogin }: { onSwitchToLogin: () => void })
         <h2 className="text-center mb-2">Create Account</h2>
         <p className="text-center text-gray-600 mb-8">Start managing your retail shop</p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>
           )}
 
           <div>
-            <label className="block text-sm mb-2">Full Name</label>
+            <label className="block text-sm mb-2">Full Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Enter your name"
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-2">Email Address</label>
+            <label className="block text-sm mb-2">Email Address *</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Enter your email"
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-2">Password</label>
+            <label className="block text-sm mb-2">Shop Name *</label>
+            <input
+              type="text"
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Enter shop name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">Phone Number *</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Enter phone number"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">Address *</label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Enter shop address"
+              rows={2}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">GST Number (Optional)</label>
+            <input
+              type="text"
+              value={gstNumber}
+              onChange={(e) => setGstNumber(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Enter GST number"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">Password *</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Create a password"
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-2">Confirm Password</label>
+            <label className="block text-sm mb-2">Confirm Password *</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Confirm your password"
+              required
             />
           </div>
 
