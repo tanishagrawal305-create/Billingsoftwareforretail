@@ -18,6 +18,8 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
     stock: '',
     barcode: '',
     gstRate: '0',
+    priceType: 'fixed' as 'fixed' | 'variable',
+    price: '',
   });
 
   useEffect(() => {
@@ -30,6 +32,8 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
         stock: product.stock.toString(),
         barcode: product.barcode || '',
         gstRate: product.gstRate?.toString() || '0',
+        priceType: product.priceType || 'fixed',
+        price: product.price?.toString() || '',
       });
     }
   }, [product]);
@@ -45,6 +49,8 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
       stock: parseInt(formData.stock),
       barcode: formData.barcode || undefined,
       gstRate: parseFloat(formData.gstRate),
+      priceType: formData.priceType,
+      price: formData.priceType === 'fixed' && formData.price ? parseFloat(formData.price) : undefined,
     };
 
     if (product) {
@@ -177,6 +183,49 @@ export const AddProductModal = ({ product, onClose }: AddProductModalProps) => {
                 placeholder="5"
               />
             </div>
+
+            <div className={formData.type === 'weight' ? '' : 'md:col-span-2'}>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price Type *
+              </label>
+              <select
+                value={formData.priceType}
+                onChange={(e) =>
+                  setFormData({ ...formData, priceType: e.target.value as 'fixed' | 'variable' })
+                }
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="fixed">Fixed Price</option>
+                <option value="variable">Variable Price (Ask at Billing)</option>
+              </select>
+            </div>
+
+            {formData.priceType === 'fixed' && (
+              <div className={formData.type === 'weight' ? '' : 'md:col-span-2'}>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price (in ₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  min="0"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="100"
+                />
+              </div>
+            )}
+
+            {formData.priceType === 'variable' && (
+              <div className={formData.type === 'weight' ? '' : 'md:col-span-2'}>
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                  <p className="text-sm text-amber-800 font-medium">💡 Variable Pricing Enabled</p>
+                  <p className="text-xs text-amber-700 mt-1">Price will be asked at the time of billing for each sale.</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-4 pt-4">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -33,6 +33,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const [showCustomerSupportModal, setShowCustomerSupportModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [showFloatingMenu, setShowFloatingMenu] = useState(false);
 
   // Setup keyboard shortcuts
   useKeyboardShortcuts({
@@ -189,27 +190,73 @@ export const Layout = ({ children }: LayoutProps) => {
         />
       )}
 
-      {/* Floating Quick Actions Buttons */}
-      <div className="fixed bottom-6 left-6 z-[9999] flex flex-col gap-3">
+      {/* Unified Floating Action Button with Menu */}
+      <div className="fixed bottom-6 left-6 z-[9999]">
+        {/* Floating Menu Popup */}
+        {showFloatingMenu && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black bg-opacity-20 z-[9998]"
+              onClick={() => setShowFloatingMenu(false)}
+            />
+
+            {/* Menu Items */}
+            <div className="absolute bottom-20 left-0 bg-white rounded-2xl shadow-2xl p-3 space-y-2 z-[9999] min-w-[220px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <button
+                onClick={() => {
+                  setShowCommandPalette(true);
+                  setShowFloatingMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-left group"
+              >
+                <div className="bg-purple-100 p-2 rounded-lg group-hover:bg-purple-200 transition-colors">
+                  <Command className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-700">Quick Actions</div>
+                  <div className="text-xs text-gray-500">Ctrl+K</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowKeyboardShortcuts(true);
+                  setShowFloatingMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors text-left group"
+              >
+                <div className="bg-gray-100 p-2 rounded-lg group-hover:bg-gray-200 transition-colors">
+                  <Keyboard className="w-5 h-5 text-gray-600" />
+                </div>
+                <span className="font-medium text-gray-700">Shortcuts</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowCustomerSupportModal(true);
+                  setShowFloatingMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-green-50 transition-colors text-left group"
+              >
+                <div className="bg-green-100 p-2 rounded-lg group-hover:bg-green-200 transition-colors">
+                  <HelpCircle className="w-5 h-5 text-green-600" />
+                </div>
+                <span className="font-medium text-gray-700">Support</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Main Floating Button */}
         <button
-          onClick={() => setShowCommandPalette(true)}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-indigo-500/50 hover:scale-110 transition-all group"
-          title="Quick Actions (Ctrl+K)"
+          onClick={() => setShowFloatingMenu(!showFloatingMenu)}
+          className={`bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-indigo-500/50 hover:scale-110 transition-all ${
+            showFloatingMenu ? 'rotate-45' : ''
+          }`}
+          title="Quick Actions Menu"
         >
-          <Command className="w-6 h-6" />
-          <span className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden lg:block">
-            Quick Actions <kbd className="ml-2 px-1.5 py-0.5 bg-gray-700 rounded">Ctrl+K</kbd>
-          </span>
-        </button>
-        <button
-          onClick={() => setShowKeyboardShortcuts(true)}
-          className="bg-gray-700 text-white p-3 rounded-full shadow-lg hover:bg-gray-800 hover:scale-110 transition-all group"
-          title="Keyboard Shortcuts"
-        >
-          <Keyboard className="w-5 h-5" />
-          <span className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden lg:block">
-            View Shortcuts
-          </span>
+          <Menu className="w-7 h-7" />
         </button>
       </div>
     </div>

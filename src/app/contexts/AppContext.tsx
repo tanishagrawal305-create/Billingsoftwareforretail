@@ -23,6 +23,8 @@ export interface Product {
   stock: number;
   barcode?: string;
   gstRate: number;
+  priceType: 'fixed' | 'variable';
+  price?: number; // Only used when priceType is 'fixed'
 }
 
 export interface CartItem {
@@ -146,7 +148,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Load products
       const storedProducts = localStorage.getItem(`${STORAGE_KEYS.PRODUCTS}_${userId}`);
       if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
+        const parsedProducts = JSON.parse(storedProducts);
+        // Migration: Add priceType to existing products if missing
+        const migratedProducts = parsedProducts.map((p: Product) => ({
+          ...p,
+          priceType: p.priceType || 'fixed',
+          price: p.price !== undefined ? p.price : undefined,
+        }));
+        setProducts(migratedProducts);
+        // Save migrated data back to localStorage
+        localStorage.setItem(`${STORAGE_KEYS.PRODUCTS}_${userId}`, JSON.stringify(migratedProducts));
       }
 
       // Load sales

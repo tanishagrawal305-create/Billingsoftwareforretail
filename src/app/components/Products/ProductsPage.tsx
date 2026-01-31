@@ -131,6 +131,16 @@ export const ProductsPage = () => {
                     {product.stock} {product.type === 'weight' ? 'kg' : 'units'}
                   </span>
                 </div>
+                {product.priceType === 'fixed' && product.price && (
+                  <p className="text-sm font-semibold text-indigo-600 mb-2">
+                    ₹{product.price} {product.type === 'weight' ? `per ${product.unit}` : 'per unit'}
+                  </p>
+                )}
+                {product.priceType === 'variable' && (
+                  <p className="text-sm font-medium text-amber-600 mb-2">
+                    💰 Variable Pricing
+                  </p>
+                )}
                 {product.type === 'weight' && (
                   <p className="text-sm text-gray-500 mb-3">
                     Unit: {product.unit}

@@ -15,7 +15,7 @@ interface AddItemModalProps {
 }
 
 export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => {
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState(product.priceType === 'fixed' && product.price ? product.price.toString() : '');
   const [quantity, setQuantity] = useState(1);
   const [customWeight, setCustomWeight] = useState('');
   const [customUnit, setCustomUnit] = useState(product.unit || 'kg');
@@ -74,12 +74,25 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
             <p className="text-xs text-gray-500 mt-1">
               Stock: {product.stock} {product.type === 'weight' ? product.unit : 'units'}
             </p>
+            {product.priceType === 'fixed' && product.price && (
+              <p className="text-xs text-indigo-600 mt-1 font-medium">
+                Fixed Price: ₹{product.price} {product.type === 'weight' ? `per ${product.unit}` : 'per unit'}
+              </p>
+            )}
+            {product.priceType === 'variable' && (
+              <div className="mt-2 bg-amber-100 border border-amber-300 rounded px-2 py-1">
+                <p className="text-xs text-amber-800 font-medium">💰 Variable Pricing</p>
+              </div>
+            )}
           </div>
 
           {/* Price Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Price {product.type === 'weight' ? `(per ${product.unit})` : '(per unit)'} *
+              {product.priceType === 'variable' && (
+                <span className="text-amber-600 text-xs ml-2">(Enter price for this sale)</span>
+              )}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
@@ -89,9 +102,14 @@ export const AddItemModal = ({ product, onClose, onAdd }: AddItemModalProps) => 
                 min="0"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full pl-8 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className={`w-full pl-8 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 ${
+                  product.priceType === 'variable' 
+                    ? 'border-amber-300 focus:ring-amber-500 bg-amber-50' 
+                    : 'border-gray-300 focus:ring-indigo-500'
+                }`}
                 placeholder="0.00"
-                autoFocus
+                autoFocus={product.priceType === 'variable'}
+                readOnly={product.priceType === 'fixed'}
               />
             </div>
           </div>

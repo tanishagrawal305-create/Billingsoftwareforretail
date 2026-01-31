@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/app/components/Layout/Layout';
 import { Login } from '@/app/components/Auth/Login';
 import { MasterKeyPage } from '@/app/components/Auth/MasterKeyPage';
